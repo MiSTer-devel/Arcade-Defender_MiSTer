@@ -1,0 +1,48 @@
+---------------------------------------------------------------------------------
+-- Arcade: Defender port to MiSTer by Sorgelig
+-- 22 October 2017
+-- 
+---------------------------------------------------------------------------------
+-- Defender by Dar (darfpga@aol.fr) (10 October 2017)
+-- http://darfpga.blogspot.fr
+--
+---------------------------------------------------------------------------------
+-- gen_ram.vhd
+-------------------------------- 
+-- Copyright 2005-2008 by Peter Wendrich (pwsoft@syntiac.com)
+-- http://www.syntiac.com/fpga64.html
+---------------------------------------------------------------------------------
+-- cpu09l - Version : 0128
+-- Synthesizable 6809 instruction compatible VHDL CPU core
+-- Copyright (C) 2003 - 2010 John Kent
+---------------------------------------------------------------------------------
+-- cpu68 - Version 9th Jan 2004 0.8
+-- 6800/01 compatible CPU core 
+-- GNU public license - December 2002 : John E. Kent
+---------------------------------------------------------------------------------
+-- 
+-- 
+-- Keyboard players inputs :
+--
+--   F3 : Add coin
+--   F2 : Start 2 players
+--   F1 : Start 1 player
+--   SPACE            : Fire  
+--   RIGHT/LEFT arrow : Thrust
+--   UP    arrow : Move up 
+--   DOWN  arrow : Move down
+--   SHIFT       : Reverse ship direction
+--   CTRL        : Smart bomb
+--   W           : Hyperspace
+--
+-- Keyboard Service inputs :
+--
+--   A : advance
+--   U : auto/up (!manual/down)
+--   H : high score reset
+--
+-- Joystick support.
+-- 
+-- 
+---------------------------------------------------------------------------------
+
