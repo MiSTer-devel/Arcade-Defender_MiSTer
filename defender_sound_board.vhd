@@ -27,9 +27,14 @@ use ieee.numeric_std.all;
 
 entity defender_sound_board is
 port(
+	clk_sys      : in std_logic;
 	clk_1p79     : in std_logic;
 	clk_0p89     : in std_logic;
 	reset        : in std_logic;
+
+	dn_addr      : in  std_logic_vector(15 downto 0);
+	dn_data      : in  std_logic_vector(7 downto 0);
+	dn_wr        : in  std_logic;
 
 	select_sound : in std_logic_vector(5 downto 0);
 	audio_out    : out std_logic_vector( 7 downto 0);
@@ -52,6 +57,7 @@ architecture struct of defender_sound_board is
 	signal wram_do   : std_logic_vector( 7 downto 0);
 
 	signal rom_cs    : std_logic;
+	signal roms_cs   : std_logic;
 	signal rom_do    : std_logic_vector( 7 downto 0);
 
 	-- pia port a
@@ -131,11 +137,19 @@ port map(
 );
 
 -- cpu program rom
-cpu_prog_rom : entity work.defender_sound
-port map(
-	clk  => clk_1p79,  -- 3p58/2
-	addr => cpu_addr(10 downto 0),
-	data => rom_do
+roms_cs  <= '1' when dn_addr(15 downto 11) = "01101"   else '0';
+
+cpu_prog_rom : work.dpram generic map (11,8)
+port map
+(
+	clock_a   => clk_sys,
+	wren_a    => dn_wr and roms_cs,
+	address_a => dn_addr(10 downto 0),
+	data_a    => dn_data,
+
+	clock_b   => clk_1p79,
+	address_b => cpu_addr(10 downto 0),
+	q_b       => rom_do
 );
 
 -- cpu wram 

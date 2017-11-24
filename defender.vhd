@@ -123,10 +123,15 @@ use ieee.numeric_std.all;
 
 entity defender is
 port(
+	clk_sys        : in std_logic;
 	clock_6        : in std_logic;
 	clk_1p79       : in std_logic;
 	clk_0p89       : in std_logic;
 	reset          : in std_logic;
+
+	dn_addr        : in  std_logic_vector(15 downto 0);
+	dn_data        : in  std_logic_vector(7 downto 0);
+	dn_wr          : in  std_logic;
 
 	video_r        : out std_logic_vector(2 downto 0);
 	video_g        : out std_logic_vector(2 downto 0);
@@ -282,7 +287,9 @@ architecture struct of defender is
 	signal select_sound : std_logic_vector(5 downto 0);
 
 	signal cpu_ce  : std_logic;
- 
+
+	signal romp_cs,romd1_cs,romd2_cs : std_logic;
+
 begin
 
 clock_6n <= not clock_6;
@@ -554,11 +561,21 @@ port map(
 -- 2K C000-C7FF page=7
 -- 6K N.A. 
 
-cpu_prog_rom : entity work.defender_prog
-port map(
-	clk  => clock_6,
-	addr => roms_addr(14 downto 0),
-	data => roms_do
+romp_cs  <= '1' when dn_addr(15 downto 8) < X"68"     else '0';
+romd1_cs <= '1' when dn_addr(15 downto 9) = "0111000" else '0';
+romd2_cs <= '1' when dn_addr(15 downto 9) = "0111001" else '0';
+
+cpu_prog_rom : work.dpram generic map (15,8)
+port map
+(
+	clock_a   => clk_sys,
+	wren_a    => dn_wr and romp_cs,
+	address_a => dn_addr(14 downto 0),
+	data_a    => dn_data,
+
+	clock_b   => clock_6,
+	address_b => roms_addr(14 downto 0),
+	q_b       => roms_do
 );
 
 -- cpu/video wram 0
@@ -617,19 +634,31 @@ port map(
 );
 
 -- cpu to video addr decoder
-cpu_video_addr_decoder : entity work.defender_decoder_2
-port map(
-	clk  => clock_6,
-	addr => cpu_to_video_addr,
-	data => cpu_to_video_do
+cpu_video_addr_decoder : work.dpram generic map (9,8)
+port map
+(
+	clock_a   => clk_sys,
+	wren_a    => dn_wr and romd1_cs,
+	address_a => dn_addr(8 downto 0),
+	data_a    => dn_data,
+
+	clock_b   => clock_6,
+	address_b => cpu_to_video_addr,
+	q_b       => cpu_to_video_do
 );
 
 -- video scan addr decoder
-video_scan_addr_decoder : entity work.defender_decoder_3
-port map(
-	clk  => clock_6,
-	addr => video_scan_addr,
-	data => video_scan_do
+video_scan_addr_decoder : work.dpram generic map (9,8)
+port map
+(
+	clock_a   => clk_sys,
+	wren_a    => dn_wr and romd2_cs,
+	address_a => dn_addr(8 downto 0),
+	data_a    => dn_data,
+
+	clock_b   => clock_6,
+	address_b => video_scan_addr,
+	q_b       => video_scan_do
 );
 
 -- pia i/O board
@@ -759,9 +788,14 @@ end process;
 -- sound board
 defender_sound_board : entity work.defender_sound_board
 port map(
+	clk_sys       => clk_sys,
 	clk_1p79      => clk_1p79,
 	clk_0p89      => clk_0p89,
 	reset         => reset,
+
+	dn_addr       => dn_addr,
+	dn_data       => dn_data,
+	dn_wr         => dn_wr,
 
 	select_sound  => select_sound,
 	audio_out     => audio_out,

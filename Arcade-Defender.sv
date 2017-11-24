@@ -99,7 +99,7 @@ assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DD
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = 'Z;
 
-assign LED_USER  = 0;
+assign LED_USER  = ioctl_download;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
 
@@ -113,13 +113,13 @@ localparam CONF_STR = {
 	"O1,Aspect ratio,4:3,16:9;",
 	"-;",
 	"T6,Reset;",
-	"J,Turn,Fire,Bomb,HyperSpace,Start 1P,Coin;",
-	"V,v1.00.",`BUILD_DATE
+	"J,Turn,Fire,Bomb,HyperSpace,Start 1P;",
+	"V,v2.00.",`BUILD_DATE
 };
 
 ////////////////////   CLOCKS   ///////////////////
 
-wire clk_sys, clk_1p79, clk_0p89;
+wire clk_sys, clk_6p, clk_1p79, clk_0p89;
 wire pll_locked;
 		
 pll pll
@@ -127,8 +127,9 @@ pll pll
 	.refclk(CLK_50M),
 	.rst(0),
 	.outclk_0(clk_sys),
-	.outclk_1(clk_1p79),
-	.outclk_2(clk_0p89),
+	.outclk_1(clk_6p),
+	.outclk_2(clk_1p79),
+	.outclk_3(clk_0p89),
 	.locked(pll_locked)
 );
 
@@ -136,6 +137,11 @@ pll pll
 
 wire [31:0] status;
 wire  [1:0] buttons;
+
+wire        ioctl_download;
+wire        ioctl_wr;
+wire [24:0] ioctl_addr;
+wire  [7:0] ioctl_dout;
 
 wire [64:0] ps2_key;
 
@@ -151,6 +157,11 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 	.buttons(buttons),
 	.status(status),
+
+	.ioctl_download(ioctl_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.ioctl_dout(ioctl_dout),
 
 	.joystick_0(joystick_0),
 	.joystick_1(joystick_1),
@@ -175,7 +186,6 @@ always @(posedge clk_sys) begin
 			'h029: btn_fire         <= pressed; // space
 			'h005: btn_one_player   <= pressed; // F1
 			'h006: btn_two_players  <= pressed; // F2
-			'h004: btn_left_coin    <= pressed; // F3
 			'hX14: btn_smart_bomb   <= pressed; // ctrl
 			'h01D: btn_hyperSpace   <= pressed; // W
 			'h01C: btn_advance      <= pressed; // A
@@ -188,7 +198,6 @@ end
 reg btn_advance = 0;
 reg btn_auto_up = 0;
 reg btn_score_reset = 0;
-reg btn_left_coin = 0;
 reg btn_one_player = 0;
 reg btn_two_players = 0;
 reg btn_fire = 0;
@@ -203,7 +212,7 @@ wire [2:0] r,g;
 wire [1:0] b;
 wire vs,hs;
 
-assign CLK_VIDEO = clk_sys;
+assign CLK_VIDEO = clk_6p;
 assign CE_PIXEL = 1;
 
 assign VGA_HS = ~hs;
@@ -220,11 +229,16 @@ assign AUDIO_S = 0;
 
 defender defender
 (
-	.clock_6(clk_sys),
+	.clk_sys(clk_sys),
+	.clock_6(clk_6p),
 	.clk_1p79(clk_1p79),
 	.clk_0p89(clk_0p89),
 
-	.reset(RESET | status[0] | status[6] | buttons[1]),
+	.reset(RESET | status[0] | status[6] | buttons[1] | ioctl_download),
+
+	.dn_addr(ioctl_addr[15:0]),
+	.dn_data(ioctl_dout),
+	.dn_wr(ioctl_wr),
 
 	//-- tv15Khz_mode => tv15Khz_mode,
 	.video_r(r),
@@ -239,7 +253,7 @@ defender defender
 	.btn_auto_up(btn_auto_up),
 	.btn_high_score_reset(btn_score_reset),
 
-	.btn_left_coin(btn_left_coin | joy[9]),
+	.btn_left_coin(btn_one_player | joy[8] | btn_two_players),
 	.btn_one_player(btn_one_player | joy[8]),
 	.btn_two_players(btn_two_players),
 
