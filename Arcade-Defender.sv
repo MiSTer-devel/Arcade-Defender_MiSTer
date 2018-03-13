@@ -29,18 +29,14 @@ module emu
 	input         RESET,
 
 	//Must be passed to hps_io module
-	inout  [43:0] HPS_BUS,
+	inout  [44:0] HPS_BUS,
 
 	//Base video clock. Usually equals to CLK_SYS.
-	output        CLK_VIDEO,
+	output        VGA_CLK,
 
-	//Multiple resolutions are supported using different CE_PIXEL rates.
+	//Multiple resolutions are supported using different VGA_CE rates.
 	//Must be based on CLK_VIDEO
-	output        CE_PIXEL,
-
-	//Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
-	output  [7:0] VIDEO_ARX,
-	output  [7:0] VIDEO_ARY,
+	output        VGA_CE,
 
 	output  [7:0] VGA_R,
 	output  [7:0] VGA_G,
@@ -49,9 +45,28 @@ module emu
 	output        VGA_VS,
 	output        VGA_DE,    // = ~(VBlank | HBlank)
 
+	//Base video clock. Usually equals to CLK_SYS.
+	output        HDMI_CLK,
+
+	//Multiple resolutions are supported using different HDMI_CE rates.
+	//Must be based on CLK_VIDEO
+	output        HDMI_CE,
+
+	output  [7:0] HDMI_R,
+	output  [7:0] HDMI_G,
+	output  [7:0] HDMI_B,
+	output        HDMI_HS,
+	output        HDMI_VS,
+	output        HDMI_DE,   // = ~(VBlank | HBlank)
+	output  [1:0] HDMI_SL,   // scanlines fx
+
+	//Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
+	output  [7:0] HDMI_ARX,
+	output  [7:0] HDMI_ARY,
+
 	output        LED_USER,  // 1 - ON, 0 - OFF.
 
-	// b[1]: 0 - LED status is system status ORed with b[0]
+	// b[1]: 0 - LED status is system status OR'd with b[0]
 	//       1 - LED status is controled solely by b[0]
 	// hint: supply 2'b00 to let the system control the LED.
 	output  [1:0] LED_POWER,
@@ -59,58 +74,23 @@ module emu
 
 	output [15:0] AUDIO_L,
 	output [15:0] AUDIO_R,
-	output        AUDIO_S, // 1 - signed audio samples, 0 - unsigned
-	input         TAPE_IN,
-
-	// SD-SPI
-	output        SD_SCK,
-	output        SD_MOSI,
-	input         SD_MISO,
-	output        SD_CS,
-
-	//High latency DDR3 RAM interface
-	//Use for non-critical time purposes
-	output        DDRAM_CLK,
-	input         DDRAM_BUSY,
-	output  [7:0] DDRAM_BURSTCNT,
-	output [28:0] DDRAM_ADDR,
-	input  [63:0] DDRAM_DOUT,
-	input         DDRAM_DOUT_READY,
-	output        DDRAM_RD,
-	output [63:0] DDRAM_DIN,
-	output  [7:0] DDRAM_BE,
-	output        DDRAM_WE,
-
-	//SDRAM interface with lower latency
-	output        SDRAM_CLK,
-	output        SDRAM_CKE,
-	output [12:0] SDRAM_A,
-	output  [1:0] SDRAM_BA,
-	inout  [15:0] SDRAM_DQ,
-	output        SDRAM_DQML,
-	output        SDRAM_DQMH,
-	output        SDRAM_nCS,
-	output        SDRAM_nCAS,
-	output        SDRAM_nRAS,
-	output        SDRAM_nWE
+	output        AUDIO_S    // 1 - signed audio samples, 0 - unsigned
 );
-
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0; 
-assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
-assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = 'Z;
 
 assign LED_USER  = ioctl_download;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
 
-assign VIDEO_ARX = status[1] ? 8'd16 : 8'd4;
-assign VIDEO_ARY = status[1] ? 8'd9  : 8'd3; 
+assign HDMI_ARX = status[1] ? 8'd16 : 8'd4;
+assign HDMI_ARY = status[1] ? 8'd9  : 8'd3;
 
 `include "build_id.v" 
 localparam CONF_STR = {
 	"A.DFNDR;;",
 	"-;",
-	"O1,Aspect ratio,4:3,16:9;",
+	"O1,Aspect Ratio,Original,Wide;",
+	"O34,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;",
+	"-;",
 	"-;",
 	"T6,Reset;",
 	"J,Turn,Fire,Bomb,HyperSpace,Start 1P;",
@@ -119,19 +99,27 @@ localparam CONF_STR = {
 
 ////////////////////   CLOCKS   ///////////////////
 
-wire clk_sys, clk_6p, clk_1p79, clk_0p89;
+wire clk_sys, clk_6p, clk_1p79, clk_0p89, clk_48;
 wire pll_locked;
-		
+
 pll pll
 (
 	.refclk(CLK_50M),
 	.rst(0),
-	.outclk_0(clk_sys),
-	.outclk_1(clk_6p),
-	.outclk_2(clk_1p79),
-	.outclk_3(clk_0p89),
+	.outclk_0(clk_48),
+	.outclk_1(clk_sys),
+	.outclk_2(clk_6p),
 	.locked(pll_locked)
 );
+
+apll apll
+(
+	.refclk(CLK_50M),
+	.rst(0),
+	.outclk_0(clk_1p79),
+	.outclk_1(clk_0p89)
+);
+
 
 ///////////////////////////////////////////////////
 
@@ -143,10 +131,12 @@ wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
 
-wire [64:0] ps2_key;
+wire [10:0] ps2_key;
 
 wire [15:0] joystick_0, joystick_1;
 wire [15:0] joy = joystick_0 | joystick_1;
+
+wire        forced_scandoubler;
 
 hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 (
@@ -157,6 +147,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 	.buttons(buttons),
 	.status(status),
+	.forced_scandoubler(forced_scandoubler),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_wr(ioctl_wr),
@@ -168,14 +159,13 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 	.ps2_key(ps2_key)
 );
 
-wire pressed    = (ps2_key[15:8] != 8'hf0);
-wire extended   = (~pressed ? (ps2_key[23:16] == 8'he0) : (ps2_key[15:8] == 8'he0));
-wire [8:0] code = ps2_key[63:24] ? 9'd0 : {extended, ps2_key[7:0]}; // filter out PRNSCR and PAUSE
+wire       pressed = ps2_key[9];
+wire [8:0] code    = ps2_key[8:0];
 always @(posedge clk_sys) begin
 	reg old_state;
-	old_state <= ps2_key[64];
+	old_state <= ps2_key[10];
 	
-	if(old_state != ps2_key[64]) begin
+	if(old_state != ps2_key[10]) begin
 		casex(code)
 			'hX75: btn_up           <= pressed; // up
 			'hX72: btn_down         <= pressed; // down
@@ -211,16 +201,39 @@ reg btn_up = 0;
 wire [2:0] r,g;
 wire [1:0] b;
 wire vs,hs;
+assign VGA_CLK  = clk_48;
+assign HDMI_CLK = VGA_CLK;
+assign HDMI_CE  = VGA_CE;
+assign HDMI_R   = VGA_R;
+assign HDMI_G   = VGA_G;
+assign HDMI_B   = VGA_B;
+assign HDMI_DE  = VGA_DE;
+assign HDMI_HS  = VGA_HS;
+assign HDMI_VS  = VGA_VS;
+assign HDMI_SL  = 0;
 
-assign CLK_VIDEO = clk_6p;
-assign CE_PIXEL = 1;
+wire HSync = ~hs;
+wire VSync = ~vs;
+wire HBlank, VBlank;
 
-assign VGA_HS = ~hs;
-assign VGA_VS = ~vs;
-assign VGA_R = {r,r,r[2:1]};
-assign VGA_G = {g,g,g[2:1]};
-assign VGA_B = {b,b,b,b};
+wire [1:0] scale = status[4:3];
 
+video_mixer #(.HALF_DEPTH(1)) video_mixer
+(
+	.*,
+	.clk_sys(VGA_CLK),
+	.ce_pix(clk_6p),
+	.ce_pix_out(VGA_CE),
+
+	.scanlines({scale == 3, scale == 2}),
+	.scandoubler(scale || forced_scandoubler),
+	.hq2x(scale==1),
+	.mono(0),
+
+	.R({r,r[2]}),
+	.G({g,g[2]}),
+	.B({b,b})
+);
 
 wire [7:0] audio;
 assign AUDIO_L = {audio, audio};
@@ -244,7 +257,8 @@ defender defender
 	.video_r(r),
 	.video_g(g),
 	.video_b(b),
-	.video_blankn(VGA_DE),
+	.video_hblank(HBlank),
+	.video_vblank(VBlank),
 	.video_hs(hs),
 	.video_vs(vs),
 	.audio_out(audio),

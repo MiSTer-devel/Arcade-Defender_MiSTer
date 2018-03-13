@@ -138,7 +138,8 @@ port(
 	video_b        : out std_logic_vector(1 downto 0);
 
 	video_csync    : out std_logic;
-	video_blankn   : out std_logic;
+	video_hblank   : out std_logic;
+	video_vblank   : out std_logic;
 	video_hs       : out std_logic;
 	video_vs       : out std_logic;
 
@@ -774,7 +775,8 @@ process(clock_6n)
 		end if;
 
 		-- external sync and blank outputs
-		video_blankn <= not (hblank or vblank);
+		video_hblank <= hblank;
+		video_vblank <= vblank;
 
 		video_hs <= hsync0;
 
