@@ -81,20 +81,23 @@ assign LED_USER  = ioctl_download;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
 
-assign HDMI_ARX = status[1] ? 8'd16 : 8'd4;
-assign HDMI_ARY = status[1] ? 8'd9  : 8'd3;
+assign HDMI_ARX = status[1] ? 8'd16 : status[2] ? 8'd4 : 8'd3;
+assign HDMI_ARY = status[1] ? 8'd9  : status[2] ? 8'd3 : 8'd4;
 
 `include "build_id.v" 
 localparam CONF_STR = {
 	"A.DFNDR;;",
+	"F,rom;", // allow loading of alternate ROMs
 	"-;",
 	"O1,Aspect Ratio,Original,Wide;",
-	"O34,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;",
+	//"O2,Orientation,Vert,Horz;",
+	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
+	"O6,Cabinet,Upright,Cocktail;",
 	"-;",
-	"T6,Reset;",
-	"J,Turn,Fire,Bomb,HyperSpace,Start 1P;",
-	"V,v2.00.",`BUILD_DATE
+	"R0,Reset;",
+	"J1,Turn,Fire,Bomb,HyperSpace,Start 1P;",
+	"V,",`BUILD_DATE
 };
 
 ////////////////////   CLOCKS   ///////////////////
@@ -106,9 +109,9 @@ pll pll
 (
 	.refclk(CLK_50M),
 	.rst(0),
-	.outclk_0(clk_48),
-	.outclk_1(clk_sys),
-	.outclk_2(clk_6p),
+	.outclk_0(clk_48), // 48
+	.outclk_1(clk_sys), // 24
+	.outclk_2(clk_6p), // 6
 	.locked(pll_locked)
 );
 
@@ -201,7 +204,7 @@ reg btn_up = 0;
 wire [2:0] r,g;
 wire [1:0] b;
 wire vs,hs;
-assign VGA_CLK  = clk_48;
+/*assign VGA_CLK  = clk_48;
 assign HDMI_CLK = VGA_CLK;
 assign HDMI_CE  = VGA_CE;
 assign HDMI_R   = VGA_R;
@@ -210,30 +213,32 @@ assign HDMI_B   = VGA_B;
 assign HDMI_DE  = VGA_DE;
 assign HDMI_HS  = VGA_HS;
 assign HDMI_VS  = VGA_VS;
-assign HDMI_SL  = 0;
-
+//assign HDMI_SL  = 0;
+*/
 wire HSync = ~hs;
 wire VSync = ~vs;
 wire HBlank, VBlank;
 
-wire [1:0] scale = status[4:3];
+//wire [1:0] scale = status[4:3];
+reg ce_pix;
+always @(posedge clk_sys) begin
+        reg old_clk;
 
-video_mixer #(.HALF_DEPTH(1)) video_mixer
+        old_clk <= clk_6p;
+        ce_pix <= old_clk & ~clk_6p;
+end
+
+arcade_fx #(306,8) arcade_video
 (
-	.*,
-	.clk_sys(VGA_CLK),
-	.ce_pix(clk_6p),
-	.ce_pix_out(VGA_CE),
+        .*,
 
-	.scanlines({scale == 3, scale == 2}),
-	.scandoubler(scale || forced_scandoubler),
-	.hq2x(scale==1),
-	.mono(0),
+        .clk_video(clk_sys),
 
-	.R({r,r[2]}),
-	.G({g,g[2]}),
-	.B({b,b})
+        .RGB_in({r,g,b}),
+
+        .fx(status[5:3])
 );
+
 
 wire [7:0] audio;
 assign AUDIO_L = {audio, audio};
@@ -247,7 +252,7 @@ defender defender
 	.clk_1p79(clk_1p79),
 	.clk_0p89(clk_0p89),
 
-	.reset(RESET | status[0] | status[6] | buttons[1] | ioctl_download),
+	.reset(RESET | status[0] | buttons[1] | ioctl_download),
 
 	.dn_addr(ioctl_addr[15:0]),
 	.dn_data(ioctl_dout),
@@ -279,7 +284,7 @@ defender defender
 	.btn_down(btn_down | joy[2]),
 	.btn_up(btn_up | joy[3]),
 
-	.sw_coktail_table(1) // 1 for coktail table, 0 for upright cabinet
+	.sw_coktail_table(status[6]) // 1  // 1 for coktail table, 0 for upright cabinet
 );
 
 endmodule
