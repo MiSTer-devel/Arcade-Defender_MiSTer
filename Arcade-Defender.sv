@@ -184,6 +184,11 @@ always @(posedge clk_sys) begin
 			'h01C: btn_advance      <= pressed; // A
 			'h03C: btn_auto_up      <= pressed; // U
 			'h033: btn_score_reset  <= pressed; // H
+			// JPAC/IPAC/MAME Style Codes
+			'h016: btn_start_1      <= pressed; // 1
+			'h01E: btn_start_2     <= pressed; // 2
+			'h02E: btn_coin         <= pressed; // 5
+			'h036: btn_coin         <= pressed; // 6
 		endcase
 	end
 end
@@ -201,25 +206,19 @@ reg btn_reverse = 0;
 reg btn_down = 0;
 reg btn_up = 0;
 
+reg btn_coin = 0;
+reg btn_start_1=0;
+reg btn_start_2=0;
+
 wire [2:0] r,g;
 wire [1:0] b;
 wire vs,hs;
-/*assign VGA_CLK  = clk_48;
-assign HDMI_CLK = VGA_CLK;
-assign HDMI_CE  = VGA_CE;
-assign HDMI_R   = VGA_R;
-assign HDMI_G   = VGA_G;
-assign HDMI_B   = VGA_B;
-assign HDMI_DE  = VGA_DE;
-assign HDMI_HS  = VGA_HS;
-assign HDMI_VS  = VGA_VS;
-//assign HDMI_SL  = 0;
-*/
+
+
 wire HSync = ~hs;
 wire VSync = ~vs;
 wire HBlank, VBlank;
 
-//wire [1:0] scale = status[4:3];
 reg ce_pix;
 always @(posedge clk_sys) begin
         reg old_clk;
@@ -231,11 +230,8 @@ end
 arcade_fx #(306,8) arcade_video
 (
         .*,
-
         .clk_video(clk_sys),
-
         .RGB_in({r,g,b}),
-
         .fx(status[5:3])
 );
 
@@ -272,9 +268,9 @@ defender defender
 	.btn_auto_up(btn_auto_up),
 	.btn_high_score_reset(btn_score_reset),
 
-	.btn_left_coin(btn_one_player | joy[8] | btn_two_players),
-	.btn_one_player(btn_one_player | joy[8]),
-	.btn_two_players(btn_two_players),
+	.btn_left_coin(btn_one_player | joy[8] | btn_two_players|btn_coin),
+	.btn_one_player(btn_one_player | joy[8]|btn_start_1),
+	.btn_two_players(btn_two_players|btn_start_2),
 
 	.btn_fire(btn_fire | joy[5]),
 	.btn_thrust(btn_thrust | joy[0] | joy[1]),
