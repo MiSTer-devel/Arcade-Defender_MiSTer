@@ -29,7 +29,7 @@ module emu
 	input         RESET,
 
 	//Must be passed to hps_io module
-	inout  [44:0] HPS_BUS,
+	inout  [45:0] HPS_BUS,
 
 	//Base video clock. Usually equals to CLK_SYS.
 	output        VGA_CLK,
@@ -44,6 +44,7 @@ module emu
 	output        VGA_HS,
 	output        VGA_VS,
 	output        VGA_DE,    // = ~(VBlank | HBlank)
+	output        VGA_F1,
 
 	//Base video clock. Usually equals to CLK_SYS.
 	output        HDMI_CLK,
@@ -74,9 +75,21 @@ module emu
 
 	output [15:0] AUDIO_L,
 	output [15:0] AUDIO_R,
-	output        AUDIO_S    // 1 - signed audio samples, 0 - unsigned
+	output        AUDIO_S,   // 1 - signed audio samples, 0 - unsigned
+	
+	// Open-drain User port.
+	// 0 - D+/RX
+	// 1 - D-/TX
+	// 2..6 - USR2..USR6
+	// Set USER_OUT to 1 to read from USER_IN.
+	input   [6:0] USER_IN,
+	output  [6:0] USER_OUT
+	
+	
 );
 
+assign VGA_F1    = 0;
+assign USER_OUT  = '1;
 assign LED_USER  = ioctl_download;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
@@ -84,17 +97,22 @@ assign LED_POWER = 0;
 assign HDMI_ARX = status[1] ? 8'd16 : 8'd4;
 assign HDMI_ARY = status[1] ? 8'd9  : 8'd3;
 
+//assign HDMI_ARX = status[1] ? 8'd16 : status[2] ? 8'd4 : 8'd3;
+//assign HDMI_ARY = status[1] ? 8'd9  : status[2] ? 8'd3 : 8'd4;
+
 `include "build_id.v" 
 localparam CONF_STR = {
 	"A.DFNDR;;",
 	"-;",
 	"O1,Aspect Ratio,Original,Wide;",
-	"O34,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;",
+	//"O2,Orientation,Vert,Horz;",
+	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
+	"O6,Cabinet,Upright,Cocktail;",
 	"-;",
-	"T6,Reset;",
-	"J,Turn,Fire,Bomb,HyperSpace,Start 1P;",
-	"V,v2.00.",`BUILD_DATE
+	"R0,Reset;",
+	"J1,Turn,Fire,Bomb,HyperSpace,Start 1P;",
+	"V,",`BUILD_DATE
 };
 
 ////////////////////   CLOCKS   ///////////////////
@@ -106,9 +124,9 @@ pll pll
 (
 	.refclk(CLK_50M),
 	.rst(0),
-	.outclk_0(clk_48),
-	.outclk_1(clk_sys),
-	.outclk_2(clk_6p),
+	.outclk_0(clk_48), // 48
+	.outclk_1(clk_sys), // 24
+	.outclk_2(clk_6p), // 6
 	.locked(pll_locked)
 );
 
@@ -138,6 +156,9 @@ wire [15:0] joy = joystick_0 | joystick_1;
 
 wire        forced_scandoubler;
 
+wire [21:0] gamma_bus;
+
+
 hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 (
 	.clk_sys(clk_sys),
@@ -148,6 +169,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 	.buttons(buttons),
 	.status(status),
 	.forced_scandoubler(forced_scandoubler),
+	.gamma_bus(gamma_bus),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_wr(ioctl_wr),
@@ -181,6 +203,11 @@ always @(posedge clk_sys) begin
 			'h01C: btn_advance      <= pressed; // A
 			'h03C: btn_auto_up      <= pressed; // U
 			'h033: btn_score_reset  <= pressed; // H
+			// JPAC/IPAC/MAME Style Codes
+			'h016: btn_start_1      <= pressed; // 1
+			'h01E: btn_start_2     <= pressed; // 2
+			'h02E: btn_coin         <= pressed; // 5
+			'h036: btn_coin         <= pressed; // 6
 		endcase
 	end
 end
@@ -198,42 +225,35 @@ reg btn_reverse = 0;
 reg btn_down = 0;
 reg btn_up = 0;
 
+reg btn_coin = 0;
+reg btn_start_1=0;
+reg btn_start_2=0;
+
 wire [2:0] r,g;
 wire [1:0] b;
 wire vs,hs;
-assign VGA_CLK  = clk_48;
-assign HDMI_CLK = VGA_CLK;
-assign HDMI_CE  = VGA_CE;
-assign HDMI_R   = VGA_R;
-assign HDMI_G   = VGA_G;
-assign HDMI_B   = VGA_B;
-assign HDMI_DE  = VGA_DE;
-assign HDMI_HS  = VGA_HS;
-assign HDMI_VS  = VGA_VS;
-assign HDMI_SL  = 0;
+
 
 wire HSync = ~hs;
 wire VSync = ~vs;
 wire HBlank, VBlank;
 
-wire [1:0] scale = status[4:3];
+reg ce_pix;
+always @(posedge clk_sys) begin
+        reg [1:0] div;
 
-video_mixer #(.HALF_DEPTH(1)) video_mixer
+        div <= div + 1'd1;
+        ce_pix <= !div;
+end
+
+arcade_fx #(306,8) arcade_video
 (
-	.*,
-	.clk_sys(VGA_CLK),
-	.ce_pix(clk_6p),
-	.ce_pix_out(VGA_CE),
-
-	.scanlines({scale == 3, scale == 2}),
-	.scandoubler(scale || forced_scandoubler),
-	.hq2x(scale==1),
-	.mono(0),
-
-	.R({r,r[2]}),
-	.G({g,g[2]}),
-	.B({b,b})
+        .*,
+        .clk_video(clk_sys),
+        .RGB_in({r,g,b}),
+        .fx(status[5:3])
 );
+
 
 wire [7:0] audio;
 assign AUDIO_L = {audio, audio};
@@ -247,7 +267,7 @@ defender defender
 	.clk_1p79(clk_1p79),
 	.clk_0p89(clk_0p89),
 
-	.reset(RESET | status[0] | status[6] | buttons[1] | ioctl_download),
+	.reset(RESET | status[0] | buttons[1] | ioctl_download),
 
 	.dn_addr(ioctl_addr[15:0]),
 	.dn_data(ioctl_dout),
@@ -267,9 +287,9 @@ defender defender
 	.btn_auto_up(btn_auto_up),
 	.btn_high_score_reset(btn_score_reset),
 
-	.btn_left_coin(btn_one_player | joy[8] | btn_two_players),
-	.btn_one_player(btn_one_player | joy[8]),
-	.btn_two_players(btn_two_players),
+	.btn_left_coin(btn_one_player | joy[8] | btn_two_players|btn_coin),
+	.btn_one_player(btn_one_player | joy[8]|btn_start_1),
+	.btn_two_players(btn_two_players|btn_start_2),
 
 	.btn_fire(btn_fire | joy[5]),
 	.btn_thrust(btn_thrust | joy[0] | joy[1]),
@@ -279,7 +299,7 @@ defender defender
 	.btn_down(btn_down | joy[2]),
 	.btn_up(btn_up | joy[3]),
 
-	.sw_coktail_table(1) // 1 for coktail table, 0 for upright cabinet
+	.sw_coktail_table(status[6]) // 1  // 1 for coktail table, 0 for upright cabinet
 );
 
 endmodule

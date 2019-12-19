@@ -41,6 +41,11 @@
 --   U : auto/up (!manual/down)
 --   H : high score reset
 --
+-- Mame Keys
+--  1 : Start 1 Player
+--  2 : Start 2 Player
+-- 5,6: Add coin
+--
 -- Joystick support.
 -- 
 -- 
