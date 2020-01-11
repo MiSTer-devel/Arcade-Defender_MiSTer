@@ -97,21 +97,19 @@ assign LED_POWER = 0;
 assign HDMI_ARX = status[1] ? 8'd16 : 8'd4;
 assign HDMI_ARY = status[1] ? 8'd9  : 8'd3;
 
-//assign HDMI_ARX = status[1] ? 8'd16 : status[2] ? 8'd4 : 8'd3;
-//assign HDMI_ARY = status[1] ? 8'd9  : status[2] ? 8'd3 : 8'd4;
-
 `include "build_id.v" 
 localparam CONF_STR = {
 	"A.DFNDR;;",
 	"-;",
-	"O1,Aspect Ratio,Original,Wide;",
-	//"O2,Orientation,Vert,Horz;",
+	"H0O1,Aspect Ratio,Original,Wide;",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
 	"O6,Cabinet,Upright,Cocktail;",
 	"-;",
 	"R0,Reset;",
-	"J1,Turn,Fire,Bomb,HyperSpace,Start 1P;",
+	"J1,Turn,Fire,Bomb,HyperSpace,Start 1P,Coin;",
+	"jn,A,B,X,Y,Start,Select,R;",
+
 	"V,",`BUILD_DATE
 };
 
@@ -143,6 +141,7 @@ apll apll
 
 wire [31:0] status;
 wire  [1:0] buttons;
+wire        direct_video;
 
 wire        ioctl_download;
 wire        ioctl_wr;
@@ -167,9 +166,12 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 	.conf_str(CONF_STR),
 
 	.buttons(buttons),
-	.status(status),
-	.forced_scandoubler(forced_scandoubler),
-	.gamma_bus(gamma_bus),
+ 	.status(status),
+ 	.status_menumask(direct_video),
+ 	.forced_scandoubler(forced_scandoubler),
+ 	.gamma_bus(gamma_bus),
+ 	.direct_video(direct_video),
+
 
 	.ioctl_download(ioctl_download),
 	.ioctl_wr(ioctl_wr),
@@ -239,8 +241,8 @@ wire VSync = ~vs;
 wire HBlank, VBlank;
 
 reg ce_pix;
-always @(posedge clk_sys) begin
-        reg [1:0] div;
+always @(posedge clk_48 ) begin
+        reg [2:0] div;
 
         div <= div + 1'd1;
         ce_pix <= !div;
@@ -249,7 +251,7 @@ end
 arcade_fx #(306,8) arcade_video
 (
         .*,
-        .clk_video(clk_sys),
+        .clk_video(clk_48),
         .RGB_in({r,g,b}),
         .fx(status[5:3])
 );
@@ -287,7 +289,7 @@ defender defender
 	.btn_auto_up(btn_auto_up),
 	.btn_high_score_reset(btn_score_reset),
 
-	.btn_left_coin(btn_one_player | joy[8] | btn_two_players|btn_coin),
+	.btn_left_coin(btn_one_player |  btn_two_players|btn_coin|joy[9]),
 	.btn_one_player(btn_one_player | joy[8]|btn_start_1),
 	.btn_two_players(btn_two_players|btn_start_2),
 
