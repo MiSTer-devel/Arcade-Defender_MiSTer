@@ -112,7 +112,7 @@ localparam CONF_STR = {
 
 ////////////////////   CLOCKS   ///////////////////
 
-wire clk_sys, clk_6p, clk_48;
+wire clk_sys, clk_6, clk_48;
 
 pll pll
 (
@@ -120,7 +120,7 @@ pll pll
 	.rst(0),
 	.outclk_0(clk_48),  // 48
 	.outclk_1(clk_sys), // 24
-	.outclk_2(clk_6p)   // 6
+	.outclk_2(clk_6)    // 6
 );
 
 ///////////////////////////////////////////////////
@@ -175,7 +175,9 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 );
 
 wire rom_download = ioctl_download && !ioctl_index;
-wire reset = RESET | status[0] | buttons[1] | rom_download;
+
+reg reset;
+always @(posedge clk_6) reset <= RESET | status[0] | buttons[1] | rom_download;
 
 ///////////////////////////////////////////////////////////////////
 
@@ -313,45 +315,57 @@ reg        landscape;
 reg        rotate_ccw;
 reg        extvbl;
 
-always @(*) begin
-	mayday = 0;
-	input0 = { 3'b000, m_coin1, 4'b0000 };
-	input1 = 0;
-	input2 = 0;
-	landscape = 1;
-	rotate_ccw = 0;
-	extvbl = 0;
+always @(posedge clk_sys) begin
+	mayday <= 0;
+	input0 <= { 3'b000, m_coin1, 4'b0000 };
+	input1 <= 0;
+	input2 <= 0;
+	landscape <= 1;
+	rotate_ccw <= 0;
+	extvbl <= 0;
 
 	case(mod)
 	mod_defender:
 		begin 
-			input1 = { m_down, m_left | m_right, m_start1, m_start2, m_fire_d, m_fire_c, m_fire_b, m_fire_a };
-			input2 = { 7'b000000, m_up };
+			input1 <= { m_down, m_left | m_right, m_start1, m_start2, m_fire_d, m_fire_c, m_fire_b, m_fire_a };
+			input2 <= { 7'b000000, m_up };
 		end
 	mod_colony7:
 		begin
-			landscape = 0;
-			rotate_ccw = 1;
-			input1 = { m_fire_b, m_fire_a, m_start1, m_start2, m_up, m_left, m_right, m_down };
-			input2 = { 7'b000000, m_fire_c };
+			landscape  <= 0;
+			rotate_ccw <= 1;
+			input1 <= { m_fire_b, m_fire_a, m_start1, m_start2, m_up, m_left, m_right, m_down };
+			input2 <= { 7'b000000, m_fire_c };
 		end
 	mod_mayday:
 		begin
-			mayday = 1;
-			input1 = { m_down, 1'b0, m_start1, m_start2, m_fire_b, m_fire_c, m_right, m_fire_a };
-			input2 = { 7'b000000, m_up };
+			mayday <= 1;
+			input1 <= { m_down, 1'b0, m_start1, m_start2, m_fire_b, m_fire_c, m_right, m_fire_a };
+			input2 <= { 7'b000000, m_up };
 		end
 	mod_jin:
 		begin
-			landscape = 0;
-			extvbl = 1;
-			input1 = { m_fire_b, m_fire_a, m_start1, m_start2, m_right, m_left, m_down, m_up };
+			landscape <= 0;
+			extvbl <= 1;
+			input1 <= { m_fire_b, m_fire_a, m_start1, m_start2, m_right, m_left, m_down, m_up };
 		end
 	default:;
 	endcase
 end
 
 wire no_rotate = status[2] | direct_video | landscape;
+
+reg [7:0] in0,in1,in2;
+reg extvbl1, mayday1;
+always @(posedge clk_6) begin
+	in0 <= sw[0] | input0;
+	in1 <= sw[1] | input1;
+	in2 <= sw[2] | input2;
+	
+	extvbl1 <= extvbl;
+	mayday1 <= mayday;
+end
+
 
 ///////////////////////////////////////////////////////////////////
 
@@ -362,9 +376,8 @@ wire HBlank, VBlank;
 
 defender defender
 (
-	.clock_6(clk_6p),
+	.clock_6(clk_6),
 	.reset(reset),
-	.extvbl(extvbl),
 
 	.dn_clk(clk_sys),
 	.dn_addr(ioctl_addr[15:0]),
@@ -380,11 +393,12 @@ defender defender
 	.video_vs(VSync),
 	.audio_out(audio),
 
-	.mayday(mayday),
+	.extvbl(extvbl1),
+	.mayday(mayday1),
 
-	.input0(sw[0] | input0),
-	.input1(sw[1] | input1),
-	.input2(sw[2] | input2)
+	.input0(in0),
+	.input1(in1),
+	.input2(in2)
 );
 
 ///////////////////////////////////////////////////////////////////

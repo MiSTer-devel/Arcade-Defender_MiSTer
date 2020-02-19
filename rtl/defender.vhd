@@ -370,11 +370,6 @@ palette_addr <=
 -- only cpu can write to palette	
 palette_di <= cpu_do;
 
--- palette output to colors bits
-video_r <= palette_do(2 downto 0);
-video_g <= palette_do(5 downto 3);
-video_b <= palette_do(7 downto 6);
-	
 
 -- 24 bits pixels shift register
 -- 6 pixels of 4 bits
@@ -738,6 +733,10 @@ process(clock_6n)
 		if    vsync_cnt = 0 then video_vs <= '0';
 		elsif vsync_cnt = 8 then video_vs <= '1';
 		end if;
+
+		video_r <= palette_do(2 downto 0);
+		video_g <= palette_do(5 downto 3);
+		video_b <= palette_do(7 downto 6);
 
 	end if;
 end process;
