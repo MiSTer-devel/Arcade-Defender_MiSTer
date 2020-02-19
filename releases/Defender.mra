@@ -6,7 +6,7 @@
 	<manufacturer>Williams</manufacturer>
 	<category>Space / Defender</category>
 	<rbf>defender</rbf>
-	<rom index="0" zip="defender.zip" md5="c30f51faa522769c684feafa3147354a" type="merged|nonmerged">
+	<rom index="0" zip="defender.zip" md5="1051340d55b115388b53730cccfca75e" type="merged|nonmerged">
 		<part name="defend.1"/>
 		<part name="defend.4"/>
 		<part name="defend.2"/>
@@ -18,8 +18,11 @@
 		<part name="defend.7"/>
 		<part name="defend.10"/>
 		<part name="defend.6"/>
-		<part name="defend.snd"/>
+		<part name="defend.6"/>
 		<part name="decoder.2"/>
 		<part name="decoder.3"/>
+		<part repeat="3072">00</part>
+		<part name="defend.snd"/>
+		<part name="defend.snd"/>
 	</rom>
 </misterromdescription>

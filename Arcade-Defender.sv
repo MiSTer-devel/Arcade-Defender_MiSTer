@@ -128,15 +128,6 @@ pll pll
 	.locked(pll_locked)
 );
 
-apll apll
-(
-	.refclk(CLK_50M),
-	.rst(0),
-	.outclk_0(clk_1p79),
-	.outclk_1(clk_0p89)
-);
-
-
 ///////////////////////////////////////////////////
 
 wire [31:0] status;
@@ -242,20 +233,19 @@ wire HBlank, VBlank;
 
 reg ce_pix;
 always @(posedge clk_48 ) begin
-        reg [2:0] div;
+	reg [2:0] div;
 
-        div <= div + 1'd1;
-        ce_pix <= !div;
+	div <= div + 1'd1;
+	ce_pix <= !div;
 end
 
 arcade_fx #(306,8) arcade_video
 (
-        .*,
-        .clk_video(clk_48),
-        .RGB_in({r,g,b}),
-        .fx(status[5:3])
+	.*,
+	.clk_video(clk_48),
+	.RGB_in({r,g,b}),
+	.fx(status[5:3])
 );
-
 
 wire [7:0] audio;
 assign AUDIO_L = {audio, audio};
@@ -264,13 +254,11 @@ assign AUDIO_S = 0;
 
 defender defender
 (
-	.clk_sys(clk_sys),
 	.clock_6(clk_6p),
-	.clk_1p79(clk_1p79),
-	.clk_0p89(clk_0p89),
 
 	.reset(RESET | status[0] | buttons[1] | ioctl_download),
 
+	.dn_clk(clk_sys),
 	.dn_addr(ioctl_addr[15:0]),
 	.dn_data(ioctl_dout),
 	.dn_wr(ioctl_wr),

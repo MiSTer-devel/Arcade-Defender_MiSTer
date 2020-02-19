@@ -123,12 +123,12 @@ use ieee.numeric_std.all;
 
 entity defender is
 port(
-	clk_sys        : in std_logic;
 	clock_6        : in std_logic;
 	clk_1p79       : in std_logic;
 	clk_0p89       : in std_logic;
 	reset          : in std_logic;
 
+	dn_clk         : in std_logic;
 	dn_addr        : in  std_logic_vector(15 downto 0);
 	dn_data        : in  std_logic_vector(7 downto 0);
 	dn_wr          : in  std_logic;
@@ -291,6 +291,9 @@ architecture struct of defender is
 
 	signal romp_cs,romd1_cs,romd2_cs : std_logic;
 
+	signal  snd_addr     : std_logic_vector(11 downto 0);
+	signal  snd_do       : std_logic_vector( 7 downto 0);
+	signal  snd_rom_we   : std_logic;
 begin
 
 clock_6n <= not clock_6;
@@ -562,21 +565,21 @@ port map(
 -- 2K C000-C7FF page=7
 -- 6K N.A. 
 
-romp_cs  <= '1' when dn_addr(15 downto 8) < X"68"     else '0';
+romp_cs  <= '1' when dn_addr(15) = '0'                else '0';
 romd1_cs <= '1' when dn_addr(15 downto 9) = "0111000" else '0';
 romd2_cs <= '1' when dn_addr(15 downto 9) = "0111001" else '0';
 
-cpu_prog_rom : work.dpram generic map (15,8)
+cpu_prog_rom : work.dpram generic map (aWidth => 15, dWidth => 8)
 port map
 (
-	clock_a   => clk_sys,
-	wren_a    => dn_wr and romp_cs,
-	address_a => dn_addr(14 downto 0),
-	data_a    => dn_data,
+	clk_a  => dn_clk,
+	we_a   => dn_wr and romp_cs,
+	addr_a => dn_addr(14 downto 0),
+	d_a    => dn_data,
 
-	clock_b   => clock_6,
-	address_b => roms_addr(14 downto 0),
-	q_b       => roms_do
+	clk_b  => clock_6,
+	addr_b => roms_addr(14 downto 0),
+	q_b    => roms_do
 );
 
 -- cpu/video wram 0
@@ -635,31 +638,31 @@ port map(
 );
 
 -- cpu to video addr decoder
-cpu_video_addr_decoder : work.dpram generic map (9,8)
+cpu_video_addr_decoder : work.dpram generic map (aWidth => 9, dWidth => 8)
 port map
 (
-	clock_a   => clk_sys,
-	wren_a    => dn_wr and romd1_cs,
-	address_a => dn_addr(8 downto 0),
-	data_a    => dn_data,
+	clk_a  => dn_clk,
+	we_a   => dn_wr and romd1_cs,
+	addr_a => dn_addr(8 downto 0),
+	d_a    => dn_data,
 
-	clock_b   => clock_6,
-	address_b => cpu_to_video_addr,
-	q_b       => cpu_to_video_do
+	clk_b  => clock_6,
+	addr_b => cpu_to_video_addr,
+	q_b    => cpu_to_video_do
 );
 
 -- video scan addr decoder
-video_scan_addr_decoder : work.dpram generic map (9,8)
+video_scan_addr_decoder : work.dpram generic map (aWidth => 9, dWidth => 8)
 port map
 (
-	clock_a   => clk_sys,
-	wren_a    => dn_wr and romd2_cs,
-	address_a => dn_addr(8 downto 0),
-	data_a    => dn_data,
+	clk_a  => dn_clk,
+	we_a   => dn_wr and romd2_cs,
+	addr_a => dn_addr(8 downto 0),
+	d_a    => dn_data,
 
-	clock_b   => clock_6,
-	address_b => video_scan_addr,
-	q_b       => video_scan_do
+	clk_b  => clock_6,
+	addr_b => video_scan_addr,
+	q_b    => video_scan_do
 );
 
 -- pia i/O board
@@ -787,22 +790,31 @@ process(clock_6n)
 	end if;
 end process;
 
--- sound board
-defender_sound_board : entity work.defender_sound_board
+snd_rom : entity work.dpram
+generic map( dWidth => 8, aWidth => 12)
 port map(
-	clk_sys       => clk_sys,
-	clk_1p79      => clk_1p79,
-	clk_0p89      => clk_0p89,
-	reset         => reset,
+	clk_a  => clock_6,
+	addr_a => snd_addr,
+	q_a    => snd_do,
 
-	dn_addr       => dn_addr,
-	dn_data       => dn_data,
-	dn_wr         => dn_wr,
+	clk_b  => dn_clk,
+	we_b   => snd_rom_we,
+	addr_b => dn_addr(11 downto 0),
+	d_b    => dn_data
+);
+
+snd_rom_we <= '1' when dn_wr = '1' and dn_addr(15 downto 12) = "1000" else '0';
+
+-- sound board
+sound_board : entity work.williams_sound_board
+port map(
+	clock         => clock_6,
+	reset         => reset,
 
 	select_sound  => select_sound,
 	audio_out     => audio_out,
-
-	dbg_cpu_addr  => open --dbg_cpu_addr
+	rom_addr      => snd_addr,
+	rom_do        => snd_do
 );
 
 end struct;
