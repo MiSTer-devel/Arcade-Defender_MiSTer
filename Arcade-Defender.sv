@@ -84,8 +84,6 @@ module emu
 	// Set USER_OUT to 1 to read from USER_IN.
 	input   [6:0] USER_IN,
 	output  [6:0] USER_OUT
-	
-	
 );
 
 assign VGA_F1    = 0;
@@ -94,60 +92,58 @@ assign LED_USER  = ioctl_download;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
 
-assign HDMI_ARX = status[1] ? 8'd16 : 8'd4;
-assign HDMI_ARY = status[1] ? 8'd9  : 8'd3;
+assign HDMI_ARX = status[1] ? 8'd16 : (status[2] | landscape) ? 8'd4 : 8'd3;
+assign HDMI_ARY = status[1] ? 8'd9  : (status[2] | landscape) ? 8'd3 : 8'd4;
 
 `include "build_id.v" 
 localparam CONF_STR = {
 	"A.DFNDR;;",
 	"-;",
 	"H0O1,Aspect Ratio,Original,Wide;",
+	"H1H0O2,Orientation,Vert,Horz;",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
-	"O6,Cabinet,Upright,Cocktail;",
+	"DIP;",
 	"-;",
 	"R0,Reset;",
-	"J1,Turn,Fire,Bomb,HyperSpace,Start 1P,Coin;",
-	"jn,A,B,X,Y,Start,Select,R;",
-
-	"V,",`BUILD_DATE
+	"J1,Fire 1,Fire 2,Fire 3,Fire 4,Start 1P,Start 2P,Coin;",
+	"V,v",`BUILD_DATE
 };
 
 ////////////////////   CLOCKS   ///////////////////
 
-wire clk_sys, clk_6p, clk_1p79, clk_0p89, clk_48;
-wire pll_locked;
+wire clk_sys, clk_6p, clk_48;
 
 pll pll
 (
 	.refclk(CLK_50M),
 	.rst(0),
-	.outclk_0(clk_48), // 48
+	.outclk_0(clk_48),  // 48
 	.outclk_1(clk_sys), // 24
-	.outclk_2(clk_6p), // 6
-	.locked(pll_locked)
+	.outclk_2(clk_6p)   // 6
 );
 
 ///////////////////////////////////////////////////
 
 wire [31:0] status;
 wire  [1:0] buttons;
+wire        forced_scandoubler;
 wire        direct_video;
 
 wire        ioctl_download;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
+wire  [7:0] ioctl_index;
+wire  [7:0] ioctl_data;
+wire        ioctl_wait;
 
 wire [10:0] ps2_key;
 
-wire [15:0] joystick_0, joystick_1;
-wire [15:0] joy = joystick_0 | joystick_1;
-
-wire        forced_scandoubler;
+wire [31:0] joy1, joy2;
+wire [31:0] joy = joy1 | joy2;
 
 wire [21:0] gamma_bus;
-
 
 hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 (
@@ -158,7 +154,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 	.buttons(buttons),
  	.status(status),
- 	.status_menumask(direct_video),
+	.status_menumask({landscape,direct_video}),
  	.forced_scandoubler(forced_scandoubler),
  	.gamma_bus(gamma_bus),
  	.direct_video(direct_video),
@@ -169,77 +165,239 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
 
-	.joystick_0(joystick_0),
-	.joystick_1(joystick_1),
+	.ioctl_index(ioctl_index),
+	.ioctl_wait(ioctl_wait),
+
+	.joystick_0(joy1),
+	.joystick_1(joy2),
+
 	.ps2_key(ps2_key)
 );
 
+wire rom_download = ioctl_download && !ioctl_index;
+wire reset = RESET | status[0] | buttons[1] | rom_download;
+
+///////////////////////////////////////////////////////////////////
+
 wire       pressed = ps2_key[9];
-wire [8:0] code    = ps2_key[8:0];
+wire [7:0] code    = ps2_key[7:0];
 always @(posedge clk_sys) begin
 	reg old_state;
 	old_state <= ps2_key[10];
 	
 	if(old_state != ps2_key[10]) begin
 		casex(code)
-			'hX75: btn_up           <= pressed; // up
-			'hX72: btn_down         <= pressed; // down
-			'hX6B: btn_thrust       <= pressed; // left
-			'hX74: btn_thrust       <= pressed; // right
-			'h012: btn_reverse      <= pressed; // l shift
-			'h059: btn_reverse      <= pressed; // r shift
-			'h029: btn_fire         <= pressed; // space
-			'h005: btn_one_player   <= pressed; // F1
-			'h006: btn_two_players  <= pressed; // F2
-			'hX14: btn_smart_bomb   <= pressed; // ctrl
-			'h01D: btn_hyperSpace   <= pressed; // W
-			'h01C: btn_advance      <= pressed; // A
-			'h03C: btn_auto_up      <= pressed; // U
-			'h033: btn_score_reset  <= pressed; // H
+			'h75: btn_up            <= pressed; // up
+			'h72: btn_down          <= pressed; // down
+			'h6B: btn_left          <= pressed; // left
+			'h74: btn_right         <= pressed; // right
+			'h76: btn_coin1         <= pressed; // ESC
+			'h05: btn_start1        <= pressed; // F1
+			'h06: btn_start2        <= pressed; // F2
+			//'h04: btn_start3        <= pressed; // F3
+			//'h0C: btn_start4        <= pressed; // F4
+			'h14: btn_fireA         <= pressed; // lctrl
+			'h11: btn_fireB         <= pressed; // lalt
+			'h29: btn_fireC         <= pressed; // Space
+			'h12: btn_fireD         <= pressed; // l-shift
+
 			// JPAC/IPAC/MAME Style Codes
-			'h016: btn_start_1      <= pressed; // 1
-			'h01E: btn_start_2     <= pressed; // 2
-			'h02E: btn_coin         <= pressed; // 5
-			'h036: btn_coin         <= pressed; // 6
+			'h16: btn_start1        <= pressed; // 1
+			'h1E: btn_start2        <= pressed; // 2
+			//'h26: btn_start3        <= pressed; // 3
+			//'h25: btn_start4        <= pressed; // 4
+			'h2E: btn_coin1         <= pressed; // 5
+			'h36: btn_coin2         <= pressed; // 6
+			//'h3D: btn_coin3         <= pressed; // 7
+			//'h3E: btn_coin4         <= pressed; // 8
+			'h2D: btn_up2           <= pressed; // R
+			'h2B: btn_down2         <= pressed; // F
+			'h23: btn_left2         <= pressed; // D
+			'h34: btn_right2        <= pressed; // G
+			'h1C: btn_fire2A        <= pressed; // A
+			'h1B: btn_fire2B        <= pressed; // S
+			'h21: btn_fire2C        <= pressed; // Q
+			'h1D: btn_fire2D        <= pressed; // W
+			//'h1D: btn_fire2E        <= pressed; // W
+			//'h1D: btn_fire2F        <= pressed; // W
+			//'h1D: btn_tilt <= pressed; // W
 		endcase
 	end
 end
 
-reg btn_advance = 0;
-reg btn_auto_up = 0;
-reg btn_score_reset = 0;
-reg btn_one_player = 0;
-reg btn_two_players = 0;
-reg btn_fire = 0;
-reg btn_thrust = 0;
-reg btn_smart_bomb = 0;
-reg btn_hyperSpace = 0;
-reg btn_reverse = 0;
-reg btn_down = 0;
-reg btn_up = 0;
+reg btn_left   = 0;
+reg btn_right  = 0;
+reg btn_down   = 0;
+reg btn_up     = 0;
+reg btn_fireA  = 0;
+reg btn_fireB  = 0;
+reg btn_fireC  = 0;
+reg btn_fireD  = 0;
+reg btn_coin1  = 0;
+reg btn_coin2  = 0;
+reg btn_start1 = 0;
+reg btn_start2 = 0;
+reg btn_up2    = 0;
+reg btn_down2  = 0;
+reg btn_left2  = 0;
+reg btn_right2 = 0;
+reg btn_fire2A = 0;
+reg btn_fire2B = 0;
+reg btn_fire2C = 0;
+reg btn_fire2D = 0;
 
-reg btn_coin = 0;
-reg btn_start_1=0;
-reg btn_start_2=0;
+wire m_start1  = btn_start1 | joy[8];
+wire m_start2  = btn_start2 | joy[9];
+wire m_coin1   = btn_coin1  | btn_coin2 | joy[10];
+
+wire m_right1  = btn_right  | joy1[0];
+wire m_left1   = btn_left   | joy1[1];
+wire m_down1   = btn_down   | joy1[2];
+wire m_up1     = btn_up     | joy1[3];
+wire m_fire1a  = btn_fireA  | joy1[4];
+wire m_fire1b  = btn_fireB  | joy1[5];
+wire m_fire1c  = btn_fireC  | joy1[6];
+wire m_fire1d  = btn_fireD  | joy1[7];
+//wire m_rcw1    =              joy1[8];
+//wire m_rccw1   =              joy1[9];
+//wire m_spccw1  =              joy1[30];
+//wire m_spcw1   =              joy1[31];
+
+wire m_right2  = btn_right2 | joy2[0];
+wire m_left2   = btn_left2  | joy2[1];
+wire m_down2   = btn_down2  | joy2[2];
+wire m_up2     = btn_up2    | joy2[3];
+wire m_fire2a  = btn_fire2A | joy2[4];
+wire m_fire2b  = btn_fire2B | joy2[5];
+wire m_fire2c  = btn_fire2C | joy2[6];
+wire m_fire2d  = btn_fire2D | joy2[7];
+//wire m_rcw2    =              joy2[8];
+//wire m_rccw2   =              joy2[9];
+//wire m_spccw2  =              joy2[30];
+//wire m_spcw2   =              joy2[31];
+
+wire m_right   = m_right1 | m_right2;
+wire m_left    = m_left1  | m_left2; 
+wire m_down    = m_down1  | m_down2; 
+wire m_up      = m_up1    | m_up2;   
+wire m_fire_a  = m_fire1a | m_fire2a;
+wire m_fire_b  = m_fire1b | m_fire2b;
+wire m_fire_c  = m_fire1c | m_fire2c;
+wire m_fire_d  = m_fire1d | m_fire2d;
+//wire m_rcw     = m_rcw1   | m_rcw2;
+//wire m_rccw    = m_rccw1  | m_rccw2;
+//wire m_spccw   = m_spccw1 | m_spccw2;
+//wire m_spcw    = m_spcw1  | m_spcw2;
+
+///////////////////////////////////////////////////////////////////
+
+localparam mod_defender = 0;
+localparam mod_colony7  = 1;
+localparam mod_mayday   = 2;
+localparam mod_jin      = 3;
+
+reg [7:0] mod = 0;
+always @(posedge clk_sys) if (ioctl_wr & (ioctl_index==1)) mod <= ioctl_dout;
+
+// load the DIPS
+reg [7:0] sw[8];
+always @(posedge clk_sys) if (ioctl_wr && (ioctl_index==254) && !ioctl_addr[24:3]) sw[ioctl_addr[2:0]] <= ioctl_dout;
+
+///////////////////////////////////////////////////////////////////
+
+reg  [7:0] input0;
+reg  [7:0] input1;
+reg  [7:0] input2;
+reg        mayday;
+reg        landscape;
+reg        rotate_ccw;
+reg        extvbl;
+
+always @(*) begin
+	mayday = 0;
+	input0 = { 3'b000, m_coin1, 4'b0000 };
+	input1 = 0;
+	input2 = 0;
+	landscape = 1;
+	rotate_ccw = 0;
+	extvbl = 0;
+
+	case(mod)
+	mod_defender:
+		begin 
+			input1 = { m_down, m_left | m_right, m_start1, m_start2, m_fire_d, m_fire_c, m_fire_b, m_fire_a };
+			input2 = { 7'b000000, m_up };
+		end
+	mod_colony7:
+		begin
+			landscape = 0;
+			rotate_ccw = 1;
+			input1 = { m_fire_b, m_fire_a, m_start1, m_start2, m_up, m_left, m_right, m_down };
+			input2 = { 7'b000000, m_fire_c };
+		end
+	mod_mayday:
+		begin
+			mayday = 1;
+			input1 = { m_down, 1'b0, m_start1, m_start2, m_fire_b, m_fire_c, m_right, m_fire_a };
+			input2 = { 7'b000000, m_up };
+		end
+	mod_jin:
+		begin
+			landscape = 0;
+			extvbl = 1;
+			input1 = { m_fire_b, m_fire_a, m_start1, m_start2, m_right, m_left, m_down, m_up };
+		end
+	default:;
+	endcase
+end
+
+wire no_rotate = status[2] | direct_video | landscape;
+
+///////////////////////////////////////////////////////////////////
 
 wire [2:0] r,g;
 wire [1:0] b;
-wire vs,hs;
-
-
-wire HSync = ~hs;
-wire VSync = ~vs;
+wire HSync, VSync;
 wire HBlank, VBlank;
 
+defender defender
+(
+	.clock_6(clk_6p),
+	.reset(reset),
+	.extvbl(extvbl),
+
+	.dn_clk(clk_sys),
+	.dn_addr(ioctl_addr[15:0]),
+	.dn_data(ioctl_dout),
+	.dn_wr(ioctl_wr & rom_download),
+
+	.video_r(r),
+	.video_g(g),
+	.video_b(b),
+	.video_hblank(HBlank),
+	.video_vblank(VBlank),
+	.video_hs(HSync),
+	.video_vs(VSync),
+	.audio_out(audio),
+
+	.mayday(mayday),
+
+	.input0(sw[0] | input0),
+	.input1(sw[1] | input1),
+	.input2(sw[2] | input2)
+);
+
+///////////////////////////////////////////////////////////////////
+
 reg ce_pix;
-always @(posedge clk_48 ) begin
+always @(posedge clk_48) begin
 	reg [2:0] div;
 
 	div <= div + 1'd1;
 	ce_pix <= !div;
 end
 
-arcade_fx #(306,8) arcade_video
+arcade_video #(306,240,8) arcade_video
 (
 	.*,
 	.clk_video(clk_48),
@@ -251,45 +409,5 @@ wire [7:0] audio;
 assign AUDIO_L = {audio, audio};
 assign AUDIO_R = AUDIO_L;
 assign AUDIO_S = 0;
-
-defender defender
-(
-	.clock_6(clk_6p),
-
-	.reset(RESET | status[0] | buttons[1] | ioctl_download),
-
-	.dn_clk(clk_sys),
-	.dn_addr(ioctl_addr[15:0]),
-	.dn_data(ioctl_dout),
-	.dn_wr(ioctl_wr),
-
-	//-- tv15Khz_mode => tv15Khz_mode,
-	.video_r(r),
-	.video_g(g),
-	.video_b(b),
-	.video_hblank(HBlank),
-	.video_vblank(VBlank),
-	.video_hs(hs),
-	.video_vs(vs),
-	.audio_out(audio),
-
-	.btn_advance(btn_advance),
-	.btn_auto_up(btn_auto_up),
-	.btn_high_score_reset(btn_score_reset),
-
-	.btn_left_coin(btn_one_player |  btn_two_players|btn_coin|joy[9]),
-	.btn_one_player(btn_one_player | joy[8]|btn_start_1),
-	.btn_two_players(btn_two_players|btn_start_2),
-
-	.btn_fire(btn_fire | joy[5]),
-	.btn_thrust(btn_thrust | joy[0] | joy[1]),
-	.btn_smart_bomb(btn_smart_bomb | joy[6]),
-	.btn_hyperSpace(btn_hyperSpace | joy[7]),
-	.btn_reverse(btn_reverse | joy[4]),
-	.btn_down(btn_down | joy[2]),
-	.btn_up(btn_up | joy[3]),
-
-	.sw_coktail_table(status[6]) // 1  // 1 for coktail table, 0 for upright cabinet
-);
 
 endmodule

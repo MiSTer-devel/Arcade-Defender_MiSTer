@@ -249,6 +249,12 @@
 --
 -- Version 1.28 - 2015-05-30 John Kent.
 -- Moved IRQ and FIRQ test from state machine to the state sequencer Sync_state.
+--
+-- Version 1.28a - Temporary tweaked release - 2018-02-08 DarFPGA
+-- Add wait_cycles process to retrieve original cycle count for some (few) instructions.
+-- Only those used by vectrex exec_rom (and spike rom) during drawing. 
+-- Beware that external hold (hold_in) is no more active.
+--
 -- 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -257,6 +263,7 @@ use ieee.std_logic_unsigned.all;
 entity cpu09 is
 	port (	
 		clk      :	in std_logic;                     -- E clock input (falling edge)
+		ce       :	in std_logic;
 		rst      :  in std_logic;                     -- reset input (active high)
 		vma      : out std_logic;                     -- valid memory address (active high)
       lic_out  : out std_logic;                     -- last instruction cycle (active high)
@@ -271,8 +278,7 @@ entity cpu09 is
 		irq      :  in std_logic;                     -- interrupt request input (active high)
 		firq     :  in std_logic;                     -- fast interrupt request input (active high)
 		nmi      :  in std_logic;                     -- non maskable interrupt request input (active high)
-		halt     :  in std_logic;                     -- halt input (active high) grants DMA
-		hold     :  in std_logic                      -- hold input (active high) extend bus cycle
+		halt     :  in std_logic                      -- halt input (active high) grants DMA
 		);
 end cpu09;
 
@@ -484,7 +490,39 @@ architecture rtl of cpu09 is
    signal dout_ctrl:    dout_type;
 
 
+	signal cnt_cycles : std_logic_vector(3 downto 0) := "0000" ;
+	signal hold : std_logic;
+	
 begin
+
+wait_cycles: process(clk)
+begin
+  if clk'event and clk = '0' then
+		if ce = '1' then
+		 if lic = '1' then
+			case op_code is
+			when X"A6" => hold <= '1'; cnt_cycles <= X"1"; -- additional cycles for vectrex tuning
+			when X"97" => hold <= '1'; cnt_cycles <= X"1";
+			when X"8C" => hold <= '1'; cnt_cycles <= X"1";
+			when X"D7" => hold <= '1'; cnt_cycles <= X"1";
+			when X"1F" => hold <= '1'; cnt_cycles <= X"3";
+			when X"B3" => hold <= '1'; cnt_cycles <= X"2";
+			when X"0A" => hold <= '1'; cnt_cycles <= X"2";
+			when X"0C" => hold <= '1'; cnt_cycles <= X"2";
+			when X"1E" => hold <= '1'; cnt_cycles <= X"3";  -- exg @117A/7C spike (allow time enough for timer to end before pc=11A4)
+			when others=> null;
+			end case;	
+		 end if;	
+
+		 if hold = '1' then
+			if cnt_cycles = X"1" then		 			
+ 			  hold <= '0';
+			end if;
+			cnt_cycles <= cnt_cycles - '1';
+		 end if;
+		end if;
+	end if;
+end process;	
 
 ----------------------------------
 --
@@ -496,6 +534,7 @@ begin
 state_stack_proc: process( clk, st_ctrl, return_state )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
 	   case st_ctrl is
       when reset_st =>
@@ -506,6 +545,7 @@ begin
         null;
  	   end case;
     end if;
+	end if;
   end if;
 end process;
 
@@ -518,6 +558,7 @@ end process;
 int_vec_proc: process( clk, iv_ctrl )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
       case iv_ctrl is
       when reset_iv =>
@@ -538,6 +579,7 @@ begin
 		  null;
       end case;
     end if; -- hold
+	end if;
   end if; -- clk
 end process;
   
@@ -551,6 +593,7 @@ end process;
 pc_reg: process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case pc_ctrl is
 	 when reset_pc =>
@@ -567,6 +610,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -581,6 +625,7 @@ ea_reg: process( clk )
 begin
 
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold= '0' then
     case ea_ctrl is
 	 when reset_ea =>
@@ -597,6 +642,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -609,6 +655,7 @@ end process;
 acca_reg : process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case acca_ctrl is
     when reset_acca =>
@@ -623,6 +670,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -635,6 +683,7 @@ end process;
 accb_reg : process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case accb_ctrl is
     when reset_accb =>
@@ -647,6 +696,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -659,6 +709,7 @@ end process;
 ix_reg : process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case ix_ctrl is
     when reset_ix =>
@@ -673,6 +724,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -685,6 +737,7 @@ end process;
 iy_reg : process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case iy_ctrl is
     when reset_iy =>
@@ -699,6 +752,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -711,6 +765,7 @@ end process;
 sp_reg : process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case sp_ctrl is
     when reset_sp =>
@@ -728,6 +783,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -740,6 +796,7 @@ end process;
 up_reg : process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case up_ctrl is
     when reset_up =>
@@ -754,6 +811,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -766,6 +824,7 @@ end process;
 md_reg : process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case md_ctrl is
     when reset_md =>
@@ -786,6 +845,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -800,6 +860,7 @@ end process;
 cc_reg: process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case cc_ctrl is
 	 when reset_cc =>
@@ -812,6 +873,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -825,6 +887,7 @@ end process;
 dp_reg: process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case dp_ctrl is
 	 when reset_dp =>
@@ -837,6 +900,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -851,6 +915,7 @@ end process;
 op_reg: process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case op_ctrl is
 	 when reset_op =>
@@ -861,6 +926,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -875,6 +941,7 @@ end process;
 pre_reg: process( clk )
 begin
   if clk'event and clk = '0' then
+	if ce = '1' then
     if hold = '0' then
     case pre_ctrl is
 	 when reset_pre =>
@@ -885,6 +952,7 @@ begin
       null;
     end case;
 	 end if;
+	end if;
   end if;
 end process;
 
@@ -898,11 +966,13 @@ end process;
 change_state: process( clk )
 begin
   if clk'event and clk = '0' then
+  
     if rst = '1' then
       fic     <= '0';
 	   nmi_ack <= '0';
  	   state   <= reset_state;
-    elsif hold = '0' then
+    elsif ce = '1' and hold = '0' then 
+	 
 		  fic <= lic;
 		  --
 		  -- nmi request is not cleared until nmi input goes low
@@ -915,7 +985,7 @@ begin
           nmi_ack <= '1';
 		  end if;
 
-        if lic = '1'  then
+        if lic = '1' then
           if halt = '1' then
 			   state <= halt_state;
 				
@@ -963,6 +1033,7 @@ begin
   if rst='1' then
 	 nmi_req <= '0';
   elsif clk'event and clk='0' then
+	if ce = '1' then
 	   if (nmi='1') and (nmi_ack='0') and (nmi_enable='1') then
 	     nmi_req <= '1';
 	   else
@@ -970,6 +1041,7 @@ begin
 	       nmi_req <= '0';
 		  end if;
 		end if;
+	end if;
   end if;
 end process;
 

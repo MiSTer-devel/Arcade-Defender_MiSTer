@@ -124,9 +124,9 @@ use ieee.numeric_std.all;
 entity defender is
 port(
 	clock_6        : in std_logic;
-	clk_1p79       : in std_logic;
-	clk_0p89       : in std_logic;
 	reset          : in std_logic;
+
+	extvbl         : in std_logic;
 
 	dn_clk         : in std_logic;
 	dn_addr        : in  std_logic_vector(15 downto 0);
@@ -142,37 +142,19 @@ port(
 	video_vblank   : out std_logic;
 	video_hs       : out std_logic;
 	video_vs       : out std_logic;
-
 	audio_out      : out std_logic_vector(7 downto 0);
 
-	btn_auto_up          : in std_logic;
-	btn_advance          : in std_logic; 
-	btn_high_score_reset : in std_logic;
-
-	btn_left_coin  : in std_logic;
-	btn_one_player : in std_logic;
-	btn_two_players: in std_logic;
-
-	btn_fire       : in std_logic;
-	btn_thrust     : in std_logic;
-	btn_smart_bomb : in std_logic;
-	btn_hyperSpace : in std_logic;
-	btn_reverse    : in std_logic;
-	btn_down       : in std_logic;
-	btn_up         : in std_logic;
-
-	sw_coktail_table : in std_logic;
-
-	cmd_select_players_btn : out std_logic
+	mayday         : in  std_logic; -- Mayday protection
+	input0         : in  std_logic_vector( 7 downto 0);
+	input1         : in  std_logic_vector( 7 downto 0);
+	input2         : in  std_logic_vector( 7 downto 0)
 );
 end defender;
 
 architecture struct of defender is
 
 	signal clock_6n   : std_logic;
-	signal reset_n    : std_logic;
-	signal clock_div  : std_logic_vector(1 downto 0);
-
+	signal cpu_a      : std_logic_vector(15 downto 0);
 	signal cpu_addr   : std_logic_vector(15 downto 0);
 	signal cpu_di     : std_logic_vector( 7 downto 0);
 	signal cpu_do     : std_logic_vector( 7 downto 0);
@@ -289,11 +271,11 @@ architecture struct of defender is
 
 	signal cpu_ce  : std_logic;
 
-	signal romp_cs,romd1_cs,romd2_cs : std_logic;
+	signal romp_cs,romd1_cs,romd2_cs,cmos_cs : std_logic;
 
-	signal  snd_addr     : std_logic_vector(11 downto 0);
-	signal  snd_do       : std_logic_vector( 7 downto 0);
-	signal  snd_rom_we   : std_logic;
+	signal snd_addr : std_logic_vector(11 downto 0);
+	signal snd_do   : std_logic_vector( 7 downto 0);
+	signal roms_cs  : std_logic;
 begin
 
 clock_6n <= not clock_6;
@@ -317,8 +299,6 @@ begin
 		end if;
 	end if;
 end process;
-
-cpu_ce <= '1' when pixel_cnt = "100" or pixel_cnt = "010" else '0';
 
 -- make hcnt and vcnt video scanner from pixel clocks and counts
 -- 
@@ -471,56 +451,13 @@ begin
  end if;
 end process;
 
--- pia rom board port a
---      bit 0  Auto Up / manual Down
---      bit 1  Advance
---      bit 2  Right Coin (nc)
---      bit 3  High Score Reset
---      bit 4  Left Coin
---      bit 5  Center Coin (nc)
---      bit 6  led 2 (output)
---      bit 7  led 1 (output)
-
 pias_clock <= clock_6; --not cpu_clock;
-
-pia_rom_pa_i(0) <= btn_auto_up;
-pia_rom_pa_i(1) <= btn_advance;
-pia_rom_pa_i(2) <= '0';
-pia_rom_pa_i(3) <= btn_high_score_reset;
-pia_rom_pa_i(4) <= btn_left_coin;
-pia_rom_pa_i(5) <= '0';
-pia_rom_pa_i(6) <= '0';
-pia_rom_pa_i(7) <= '0';
-
--- pia io port a
---      bit 0  Fire
---      bit 1  Thrust
---      bit 2  Smart Bomb
---      bit 3  HyperSpace
---      bit 4  2 Players
---      bit 5  1 Player
---      bit 6  Reverse
---      bit 7  Down
-
-pia_io_pa_i(0) <= btn_fire;
-pia_io_pa_i(1) <= btn_thrust;
-pia_io_pa_i(2) <= btn_smart_bomb;
-pia_io_pa_i(3) <= btn_hyperSpace;
-pia_io_pa_i(4) <= btn_two_players;
-pia_io_pa_i(5) <= btn_one_player;
-pia_io_pa_i(6) <= btn_reverse;
-pia_io_pa_i(7) <= btn_down;
-
--- pia io port b
---      bit 0  Up
---      bit 7  1 for coktail table, 0 for upright cabinet
---      other <= GND
-pia_io_pb_i(0) <= btn_up;
-pia_io_pb_i(6 downto 1) <= "000000";
-pia_io_pb_i(7) <= sw_coktail_table;
+pia_rom_pa_i <= input0;
+pia_io_pa_i  <= input1;
+pia_io_pb_i  <= input2;
 
 -- pia io ca/cb
-cmd_select_players_btn <= pia_io_cb2_o; 
+--cmd_select_players_btn <= pia_io_cb2_o; 
 
 -- pia rom ca1/Cb1
 vcnt_240 <= '1' when vcnt(7 downto 4) = X"F" else '0';
@@ -532,28 +469,35 @@ cpu_irq  <= pia_rom_irqa or pia_rom_irqb;
 -- pia rom to sound board
 select_sound <= pia_rom_pb_o(5 downto 0);
 
+cpu_ce <= '1' when pixel_cnt = "100" or pixel_cnt = "010" else '0';
 
 -- microprocessor 6809
 main_cpu : entity work.cpu09
 port map(	
 	clk      => clock_6,  -- E clock input (falling edge)
+	ce       => cpu_ce,
 	rst      => reset,    -- reset input (active high)
 	vma      => open,     -- valid memory address (active high)
-   lic_out  => open,     -- last instruction cycle (active high)
-   ifetch   => open,     -- instruction fetch cycle (active high)
-   opfetch  => open,     -- opcode fetch (active high)
-   ba       => open,     -- bus available (high on sync wait or DMA grant)
-   bs       => open,     -- bus status (high on interrupt or reset vector fetch or DMA grant)
-	addr     => cpu_addr, -- address bus output
+	lic_out  => open,     -- last instruction cycle (active high)
+	ifetch   => open,     -- instruction fetch cycle (active high)
+	opfetch  => open,     -- opcode fetch (active high)
+	ba       => open,     -- bus available (high on sync wait or DMA grant)
+	bs       => open,     -- bus status (high on interrupt or reset vector fetch or DMA grant)
+	addr     => cpu_a,    -- address bus output
 	rw       => cpu_rw,   -- read not write output
 	data_out => cpu_do,   -- data bus output
 	data_in  => cpu_di,   -- data bus input
 	irq      => cpu_irq,  -- interrupt request input (active high)
 	firq     => '0',      -- fast interrupt request input (active high)
 	nmi      => '0',      -- non maskable interrupt request input (active high)
-	halt     => '0',      -- halt input (active high) grants DMA
-	hold     => not cpu_ce -- hold input (active high) extend bus cycle
+	halt     => '0'      -- not cpu_ce -- hold input (active high) extend bus cycle
 );
+
+-- Mayday protection.
+cpu_addr <= cpu_a   when mayday = '0' else
+            x"A193" when cpu_rw = '1' and cpu_a = x"A190" else
+            x"A194" when cpu_rw = '1' and cpu_a = x"A191" else
+            cpu_a;
 
 -- cpu program rom
 -- 4k D000-DFFF
@@ -565,9 +509,11 @@ port map(
 -- 2K C000-C7FF page=7
 -- 6K N.A. 
 
-romp_cs  <= '1' when dn_addr(15) = '0'                else '0';
-romd1_cs <= '1' when dn_addr(15 downto 9) = "0111000" else '0';
-romd2_cs <= '1' when dn_addr(15 downto 9) = "0111001" else '0';
+romp_cs  <= '1' when dn_addr(15) = '0'                  else '0';
+romd1_cs <= '1' when dn_addr(15 downto 9)  = "0111000"  else '0';
+romd2_cs <= '1' when dn_addr(15 downto 9)  = "0111001"  else '0';
+cmos_cs  <= '1' when dn_addr(15 downto 8)  = "01110100" else '0';
+roms_cs  <= '1' when dn_addr(15 downto 12) = "1000"     else '0';
 
 cpu_prog_rom : work.dpram generic map (aWidth => 15, dWidth => 8)
 port map
@@ -627,14 +573,19 @@ port map(
 );
 
 -- cmos ram 
-cmos_ram : entity work.defender_cmos_ram
+cmos_ram : entity work.dpram
 generic map( dWidth => 4, aWidth => 8)
 port map(
-	clk  => clock_6,
-	we   => cmos_we,
-	addr => cpu_addr(7 downto 0),
-	d    => cpu_do(3 downto 0),
-	q    => cmos_do
+	clk_a  => dn_clk,
+	we_a   => dn_wr and cmos_cs,
+	addr_a => dn_addr(7 downto 0),
+	d_a    => dn_data(3 downto 0),
+
+	clk_b  => clock_6,
+	we_b   => cmos_we,
+	addr_b => cpu_addr(7 downto 0),
+	d_b    => cpu_do(3 downto 0),
+	q_b    => cmos_do
 );
 
 -- cpu to video addr decoder
@@ -690,7 +641,7 @@ port map
 	pb_oe       => open,
 	cb1       	=> '0',
 	cb2_i      	=> '0',
-	cb2_o       => pia_io_cb2_o,
+	--cb2_o       => pia_io_cb2_o,
 	cb2_oe      => open
 );
 
@@ -750,8 +701,8 @@ process(clock_6n)
 		end if;
 
 		if hcnt = 63 and pixel_cnt = 5 then
-			if vcnt = 495 then                     -- 503 with vcnt max = F4
-				vsync_cnt := X"0";                   -- 499 with F8, 495 with FC
+			if vcnt = 503 then                     -- 503 with vcnt max = F4
+				vsync_cnt := X"0";                  -- 499 with F8, 495 with FC
 			else
 				if vsync_cnt < X"F" then vsync_cnt := vsync_cnt + '1'; end if;
 			end if;
@@ -773,7 +724,8 @@ process(clock_6n)
 		elsif hcnt = hcnt_base+11-64 then hblank <= '0';
 		end if;
 
-		if    vcnt = 492 then vblank <= '1';   -- 492 ok
+		if    vcnt = 502 and extvbl = '0' then vblank <= '1';
+		elsif vcnt = 495 and extvbl = '1' then vblank <= '1';
 		elsif vcnt = 262 then vblank <= '0';   -- 262 ok 
 		end if;
 
@@ -798,12 +750,10 @@ port map(
 	q_a    => snd_do,
 
 	clk_b  => dn_clk,
-	we_b   => snd_rom_we,
+	we_b   => dn_wr and roms_cs,
 	addr_b => dn_addr(11 downto 0),
 	d_b    => dn_data
 );
-
-snd_rom_we <= '1' when dn_wr = '1' and dn_addr(15 downto 12) = "1000" else '0';
 
 -- sound board
 sound_board : entity work.williams_sound_board

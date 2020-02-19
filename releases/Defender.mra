@@ -5,8 +5,14 @@
 	<year>1980</year>
 	<manufacturer>Williams</manufacturer>
 	<category>Space / Defender</category>
+	<setname>defender</setname>
 	<rbf>defender</rbf>
-	<rom index="0" zip="defender.zip" md5="1051340d55b115388b53730cccfca75e" type="merged|nonmerged">
+	<buttons names="Fire,Thrust,Smart Bomb,Hyperspace,Start 1P,Start 2P,Coin" default="A,B,X,Y,Start,Select,R"/>
+	<switches>
+		<dip bits="0" name="Auto up" ids="Off,On"/>
+		<dip bits="1" name="Advance" ids="Off,On"/>
+	</switches>
+	<rom index="0" zip="defender.zip" md5="752a531ae38ffcf3be5c568d006bdf67" type="merged|nonmerged">
 		<part name="defend.1"/>
 		<part name="defend.4"/>
 		<part name="defend.2"/>
@@ -21,7 +27,25 @@
 		<part name="defend.6"/>
 		<part name="decoder.2"/>
 		<part name="decoder.3"/>
-		<part repeat="3072">00</part>
+		<part>
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 01
+			02 07 00 04 04 05 02 04 0A 00 01 08 03 01 05 05
+			03 04 01 04 0D 00 01 05 09 02 00 04 0C 04 05 04
+			04 00 01 04 02 08 05 05 00 04 07 04 04 00 01 02
+			05 02 00 04 03 05 02 04 02 00 01 01 00 03 05 04
+			0D 05 02 05 03 00 00 08 02 06 05 05 03 05 03 05
+			02 00 00 06 00 01 00 05 04 04 0D 04 08 00 00 05
+			0A 00 01 00 00 00 03 00 03 00 01 00 04 00 01 00
+			01 00 00 00 00 00 00 00 05 01 05 00 01 00 05 00
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+		</part>
+		<part repeat="2816">00</part>
 		<part name="defend.snd"/>
 		<part name="defend.snd"/>
 	</rom>
