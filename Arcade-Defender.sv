@@ -103,6 +103,8 @@ localparam CONF_STR = {
 	"H1H0O2,Orientation,Vert,Horz;",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
+	"h2O6,Control,Mode 1,Mode 2;",
+	"h2-;",
 	"DIP;",
 	"-;",
 	"R0,Reset;",
@@ -154,7 +156,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 	.buttons(buttons),
  	.status(status),
-	.status_menumask({landscape,direct_video}),
+	.status_menumask({mod == mod_defender,landscape,direct_video}),
  	.forced_scandoubler(forced_scandoubler),
  	.gamma_bus(gamma_bus),
  	.direct_video(direct_video),
@@ -327,7 +329,7 @@ always @(posedge clk_sys) begin
 	case(mod)
 	mod_defender:
 		begin 
-			input1 <= { m_down, m_left | m_right, m_start1, m_start2, m_fire_d, m_fire_c, m_fire_b, m_fire_a };
+			input1 <= { m_down, status[6] ? (def_state ? m_right : m_left) : (m_left | m_right), m_start1, m_start2, m_fire_d, m_fire_c, status[6] ? (def_state ? m_left : m_right) : m_fire_b, m_fire_a };
 			input2 <= { 7'b000000, m_up };
 		end
 	mod_colony7:
@@ -366,18 +368,19 @@ always @(posedge clk_6) begin
 	mayday1 <= mayday;
 end
 
-
 ///////////////////////////////////////////////////////////////////
 
 wire [2:0] r,g;
 wire [1:0] b;
 wire HSync, VSync;
 wire HBlank, VBlank;
+wire def_state;
 
 defender defender
 (
 	.clock_6(clk_6),
 	.reset(reset),
+	.defender_state(def_state),
 
 	.dn_clk(clk_sys),
 	.dn_addr(ioctl_addr[15:0]),

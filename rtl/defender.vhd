@@ -123,12 +123,13 @@ use ieee.numeric_std.all;
 
 entity defender is
 port(
-	clock_6        : in std_logic;
-	reset          : in std_logic;
+	clock_6        : in  std_logic;
+	reset          : in  std_logic;
 
-	extvbl         : in std_logic;
+	extvbl         : in  std_logic;
+	defender_state : out std_logic;
 
-	dn_clk         : in std_logic;
+	dn_clk         : in  std_logic;
 	dn_addr        : in  std_logic_vector(15 downto 0);
 	dn_data        : in  std_logic_vector(7 downto 0);
 	dn_wr          : in  std_logic;
@@ -430,6 +431,18 @@ wram0_we  <= '1' when wram_we = '1' and cpu_to_video_do(7 downto 6)  = "00" else
 wram1_we  <= '1' when wram_we = '1' and cpu_to_video_do(7 downto 6)  = "01" else '0';
 wram2_we  <= '1' when wram_we = '1' and cpu_to_video_do(7 downto 6)  = "10" else '0';
 
+process (clock_6) 
+begin
+	if rising_edge(clock_6) then 
+		if wram_we = '1' and cpu_addr = x"A0BB" then
+			if cpu_do = X"FD" then
+				defender_state <= '1';
+			else
+				defender_state <= '0';
+			end if;
+		end if;
+	end if;
+end process;
 
 -- rom bank page (and IO) select register
 -- screen control register
