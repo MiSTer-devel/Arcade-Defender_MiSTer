@@ -1,52 +1,52 @@
 <misterromdescription>
 	<name>Defender (Red label)</name>
-	<mameversion>0216</mameversion>
-	<mratimestamp>201911270000</mratimestamp>
+	<mameversion>0218</mameversion>
+	<setname>defender</setname>
+	<mratimestamp>20200220212542</mratimestamp>
 	<year>1980</year>
 	<manufacturer>Williams</manufacturer>
 	<category>Space / Defender</category>
-	<setname>defender</setname>
 	<rbf>defender</rbf>
-	<buttons names="Fire,Thrust,Smart Bomb,Hyperspace,Start 1P,Start 2P,Coin" default="A,B,X,Y,Start,Select,R"/>
 	<switches>
 		<dip bits="0" name="Auto up" ids="Off,On"/>
 		<dip bits="1" name="Advance" ids="Off,On"/>
 	</switches>
-	<rom index="0" zip="defender.zip" md5="752a531ae38ffcf3be5c568d006bdf67" type="merged|nonmerged">
-		<part name="defend.1"/>
-		<part name="defend.4"/>
-		<part name="defend.2"/>
-		<part name="defend.3"/>
-		<part name="defend.9"/>
-		<part name="defend.12"/>
-		<part name="defend.8"/>
-		<part name="defend.11"/>
-		<part name="defend.7"/>
-		<part name="defend.10"/>
-		<part name="defend.6"/>
-		<part name="defend.6"/>
-		<part name="decoder.2"/>
-		<part name="decoder.3"/>
+	<buttons names="Fire,Thrust,Smart Bomb,Hyperspace,Start 1P,Start 2P,Coin" default="A,B,X,Y,Start,Select,R"/>
+	<rom index="0" zip="defender.zip" md5="752a531ae38ffcf3be5c568d006bdf67">
+		<part crc="c3e52d7e" name="defend.1"/>
+		<part crc="9a72348b" name="defend.4"/>
+		<part crc="89b75984" name="defend.2"/>
+		<part crc="94f51e9b" name="defend.3"/>
+		<part crc="6870e8a5" name="defend.9"/>
+		<part crc="f1f88938" name="defend.12"/>
+		<part crc="b649e306" name="defend.8"/>
+		<part crc="9deaf6d9" name="defend.11"/>
+		<part crc="339e092e" name="defend.7"/>
+		<part crc="a543b167" name="defend.10"/>
+		<part crc="65f4efd1" name="defend.6"/>
+		<part crc="65f4efd1" name="defend.6"/>
+		<part crc="8dd98da5" name="decoder.2"/>
+		<part crc="c3f45f70" name="decoder.3"/>
 		<part>
-			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-			00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 01
-			02 07 00 04 04 05 02 04 0A 00 01 08 03 01 05 05
-			03 04 01 04 0D 00 01 05 09 02 00 04 0C 04 05 04
-			04 00 01 04 02 08 05 05 00 04 07 04 04 00 01 02
-			05 02 00 04 03 05 02 04 02 00 01 01 00 03 05 04
-			0D 05 02 05 03 00 00 08 02 06 05 05 03 05 03 05
-			02 00 00 06 00 01 00 05 04 04 0D 04 08 00 00 05
-			0A 00 01 00 00 00 03 00 03 00 01 00 04 00 01 00
-			01 00 00 00 00 00 00 00 05 01 05 00 01 00 05 00
-			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-			00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00000000000000000000000000000000
+00000000000000000000000000000201
+02070004040502040A00010803010505
+030401040D000105090200040C040504
+04000104020805050004070404000102
+05020004030502040200010100030504
+0D050205030000080206050503050305
+020000060001000504040D0408000005
+0A000100000003000300010004000100
+01000000000000000501050001000500
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
 		</part>
 		<part repeat="2816">00</part>
-		<part name="defend.snd"/>
-		<part name="defend.snd"/>
+		<part crc="fefd5b48" name="defend.snd"/>
+		<part crc="fefd5b48" name="defend.snd"/>
 	</rom>
 </misterromdescription>

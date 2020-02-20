@@ -1,27 +1,29 @@
 <misterromdescription>
-    <name>Jin</name>
-    <mameversion>0216</mameversion>
-    <setname>jin</setname>
-    <mratimestamp>201911270000</mratimestamp>
-    <year>1982</year>
-    <manufacturer>Falcon</manufacturer>
-    <category>Maze / Qix</category>
-    <rbf>defender</rbf>
-    <rom index="1"><part>3</part></rom>
-	<buttons names="Button 1,Button 2,-,-,Start 1P,Start 2P,Coin" default="A,B,Start,Select,R"/>
-    <switches>
+	<name>Jin</name>
+	<mameversion>0218</mameversion>
+	<setname>jin</setname>
+	<mratimestamp>20200220214401</mratimestamp>
+	<year>1982</year>
+	<manufacturer>Falcon</manufacturer>
+	<category>Maze / Qix</category>
+	<rbf>defender</rbf>
+	<switches>
 		<dip bits="19"    name="Lives"          ids="3,4"/>
 		<dip bits="21,22" name="Level complete" ids="55%,65%,75%,85%"/>
-    </switches>
-    <rom index="0" zip="jin.zip" md5="56cf65f7e7d1fefc4660c54b77922693" type="merged|nonmerged">
-		<part name="jin11.6c"/>
-		<part name="jin12.7c"/>
-		<part name="jin13.6d"/>
-		<part name="jin14.4c" repeat=4/>
-		<part name="jin.1a"/>
-		<part name="jin.1l"/>
+	</switches>
+	<buttons names="Button 1,Button 2,-,-,Start 1P,Start 2P,Coin" default="A,B,Start,Select,R"/>
+	<rom index="1">
+		<part>3</part>
+	</rom>
+	<rom index="0" zip="jin.zip" md5="56cf65f7e7d1fefc4660c54b77922693">
+		<part crc="c4b9e93f" name="jin11.6c"/>
+		<part crc="a8bc9fdd" name="jin12.7c"/>
+		<part crc="79779b85" name="jin13.6d"/>
+		<part crc="6a4df97e" repeat="4" name="jin14.4c"/>
+		<part crc="8dd98da5" name="jin.1a"/>
+		<part crc="c3f45f70" name="jin.1l"/>
 		<part repeat="3072">00</part>
-		<part name="jin15.3f"/>
-		<part name="jin15.3f"/>
-    </rom>
+		<part crc="fefd5b48" name="jin15.3f"/>
+		<part crc="fefd5b48" name="jin15.3f"/>
+	</rom>
 </misterromdescription>
