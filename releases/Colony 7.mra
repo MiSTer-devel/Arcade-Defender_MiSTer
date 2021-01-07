@@ -30,4 +30,6 @@
 		<part crc="6032293c" name="cs11.bin"/>
 		<part crc="6032293c" name="cs11.bin"/>
 	</rom>
+			<nvram index="4" size="256"/>
+
 </misterromdescription>

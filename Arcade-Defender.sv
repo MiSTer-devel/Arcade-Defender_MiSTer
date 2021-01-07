@@ -164,9 +164,11 @@ wire        forced_scandoubler;
 wire        direct_video;
 
 wire        ioctl_download;
+wire        ioctl_upload;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
+wire  [7:0] ioctl_din;
 wire  [7:0] ioctl_index;
 wire  [7:0] ioctl_data;
 wire        ioctl_wait;
@@ -193,9 +195,11 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 
 	.ioctl_download(ioctl_download),
+	.ioctl_upload(ioctl_upload),
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
+	.ioctl_din(ioctl_din),
 
 	.ioctl_index(ioctl_index),
 	.ioctl_wait(ioctl_wait),
@@ -215,6 +219,9 @@ always @(posedge clk_6) reset <= RESET | status[0] | buttons[1] | rom_download;
 wire m_start1  = joy[9];
 wire m_start2  = joy[10];
 wire m_coin1   = joy[11];
+wire m_advance = joy[12];
+wire m_autoup  = joy[13];
+wire m_highreset=joy[14];
 
 wire m_right1  = joy1[0];
 wire m_left1   = joy1[1];
@@ -284,7 +291,9 @@ reg        extvbl;
 
 always @(posedge clk_sys) begin
 	mayday <= 0;
-	input0 <= { 3'b000, m_coin1, 4'b0000 };
+	input0 <= { 3'b000, m_coin1, m_highreset,1'b0,m_advance,m_autoup};
+
+
 	input1 <= 0;
 	input2 <= 0;
 	landscape <= 1;
@@ -351,6 +360,9 @@ defender defender
 	.dn_addr(ioctl_addr[15:0]),
 	.dn_data(ioctl_dout),
 	.dn_wr(ioctl_wr & rom_download),
+	.dn_nvram_wr(ioctl_wr & (ioctl_index=='d4)), 
+	.dn_din(ioctl_din),
+	.dn_nvram(ioctl_index=='d4),
 
 	.video_r(r),
 	.video_g(g),
