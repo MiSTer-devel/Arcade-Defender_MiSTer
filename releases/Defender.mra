@@ -8,10 +8,8 @@
 	<category>Space / Defender</category>
 	<rbf>defender</rbf>
 	<switches>
-		<dip bits="0" name="Auto up" ids="Off,On"/>
-		<dip bits="1" name="Advance" ids="Off,On"/>
 	</switches>
-	<buttons names="Fire,Thrust,Smart Bomb,Hyperspace,Start 1P,Start 2P,Coin" default="A,B,X,Y,Start,Select,R"/>
+	<buttons names="Fire,Thrust,Smart Bomb,Hyperspace,Reverse,Start 1P,Start 2P,Coin,Advance,Auto Up,High Score Reset" default="A,B,X,Y,L,Start,Select,R"/>
 	<rom index="0" zip="defender.zip" md5="752a531ae38ffcf3be5c568d006bdf67">
 		<part crc="c3e52d7e" name="defend.1"/>
 		<part crc="9a72348b" name="defend.4"/>
@@ -49,4 +47,5 @@
 		<part crc="fefd5b48" name="defend.snd"/>
 		<part crc="fefd5b48" name="defend.snd"/>
 	</rom>
+		<nvram index="4" size="256"/>
 </misterromdescription>

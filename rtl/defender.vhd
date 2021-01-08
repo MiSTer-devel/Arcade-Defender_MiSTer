@@ -133,6 +133,9 @@ port(
 	dn_addr        : in  std_logic_vector(15 downto 0);
 	dn_data        : in  std_logic_vector(7 downto 0);
 	dn_wr          : in  std_logic;
+   dn_din         : out  std_logic_vector(7 downto 0);
+   dn_nvram       : in  std_logic;
+   dn_nvram_wr    : in  std_logic;
 
 	video_r        : out std_logic_vector(2 downto 0);
 	video_g        : out std_logic_vector(2 downto 0);
@@ -520,7 +523,7 @@ cpu_addr <= cpu_a   when mayday = '0' else
 romp_cs  <= '1' when dn_addr(15) = '0'                  else '0';
 romd1_cs <= '1' when dn_addr(15 downto 9)  = "0111000"  else '0';
 romd2_cs <= '1' when dn_addr(15 downto 9)  = "0111001"  else '0';
-cmos_cs  <= '1' when dn_addr(15 downto 8)  = "01110100" else '0';
+cmos_cs  <= '1' when (dn_addr(15 downto 8)  = "01110100") or  (dn_nvram='1') else '0';
 roms_cs  <= '1' when dn_addr(15 downto 12) = "1000"     else '0';
 
 cpu_prog_rom : work.dpram generic map (aWidth => 15, dWidth => 8)
@@ -585,9 +588,10 @@ cmos_ram : entity work.dpram
 generic map( dWidth => 4, aWidth => 8)
 port map(
 	clk_a  => dn_clk,
-	we_a   => dn_wr and cmos_cs,
+	we_a   => (dn_wr or dn_nvram_wr) and cmos_cs,
 	addr_a => dn_addr(7 downto 0),
 	d_a    => dn_data(3 downto 0),
+	q_a     => dn_din(3 downto 0),
 
 	clk_b  => clock_6,
 	we_b   => cmos_we,

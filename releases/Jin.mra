@@ -11,7 +11,7 @@
 		<dip bits="19"    name="Lives"          ids="3,4"/>
 		<dip bits="21,22" name="Level complete" ids="55%,65%,75%,85%"/>
 	</switches>
-	<buttons names="Button 1,Button 2,-,-,Start 1P,Start 2P,Coin" default="A,B,Start,Select,R"/>
+	<buttons names="Button 1,Button 2,-,-,-,Start 1P,Start 2P,Coin,Advance,Auto Up,High Score Reset" default="A,B,Start,Select,R"/>
 	<rom index="1">
 		<part>3</part>
 	</rom>
@@ -26,4 +26,6 @@
 		<part crc="fefd5b48" name="jin15.3f"/>
 		<part crc="fefd5b48" name="jin15.3f"/>
 	</rom>
+		<nvram index="4" size="256"/>
+
 </misterromdescription>
