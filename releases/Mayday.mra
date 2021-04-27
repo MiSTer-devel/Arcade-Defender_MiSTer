@@ -9,7 +9,7 @@
 	<rbf>defender</rbf>
 	<switches>
 	</switches>
-	<buttons names="Fire,Back Fire,Mayday,-,-,Start 1P,Start 2P,Coin,Advance,Auto Up,Test Credit" default="A,B,X,Start,Select,R"/>
+	<buttons names="Fire,Back Fire,Mayday,-,-,Start 1P,Start 2P,Coin,Advance,Auto Up,Test Credit,Pause" default="A,B,X,Start,Select,R"/>
 	<rom index="1">
 		<part>2</part>
 	</rom>
@@ -93,6 +93,5 @@ abaaa9a8a7a6a5a4a3a2a1a09f9e9d9c
 		<part crc="fefd5b48" name="ic28-8.bin"/>
 		<part crc="fefd5b48" name="ic28-8.bin"/>
 	</rom>
-			<nvram index="4" size="256"/>
-
+	<nvram index="4" size="256"/>
 </misterromdescription>

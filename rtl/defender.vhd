@@ -125,6 +125,7 @@ entity defender is
 port(
 	clock_6        : in  std_logic;
 	reset          : in  std_logic;
+	pause          : in  std_logic;
 
 	extvbl         : in  std_logic;
 	defender_state : out std_logic;
@@ -133,9 +134,9 @@ port(
 	dn_addr        : in  std_logic_vector(15 downto 0);
 	dn_data        : in  std_logic_vector(7 downto 0);
 	dn_wr          : in  std_logic;
-   dn_din         : out  std_logic_vector(7 downto 0);
-   dn_nvram       : in  std_logic;
-   dn_nvram_wr    : in  std_logic;
+	dn_din         : out std_logic_vector(7 downto 0);
+	dn_nvram       : in  std_logic;
+	dn_nvram_wr    : in  std_logic;
 
 	video_r        : out std_logic_vector(2 downto 0);
 	video_g        : out std_logic_vector(2 downto 0);
@@ -480,7 +481,7 @@ cpu_irq  <= pia_rom_irqa or pia_rom_irqb;
 -- pia rom to sound board
 select_sound <= pia_rom_pb_o(5 downto 0);
 
-cpu_ce <= '1' when pixel_cnt = "100" or pixel_cnt = "010" else '0';
+cpu_ce <= '1' when ((pixel_cnt = "100" or pixel_cnt = "010") and not pause = '1') else '0';
 
 -- microprocessor 6809
 main_cpu : entity work.cpu09
@@ -501,7 +502,7 @@ port map(
 	irq      => cpu_irq,  -- interrupt request input (active high)
 	firq     => '0',      -- fast interrupt request input (active high)
 	nmi      => '0',      -- non maskable interrupt request input (active high)
-	halt     => '0'      -- not cpu_ce -- hold input (active high) extend bus cycle
+	halt     => '0'       -- not cpu_ce -- hold input (active high) extend bus cycle
 );
 
 -- Mayday protection.
