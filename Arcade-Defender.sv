@@ -110,7 +110,7 @@ localparam CONF_STR = {
 	"R0,Reset;",
 	"J1,Fire 1,Fire 2,Fire 3,Fire 4,Start 1P,Start 2P,Coin;",
 	"jn,A,B,X,Y,Start,Select,R;",
-	"jP,B,A,Y,X,Start,,Select;",
+	"jP,B,A,Y,X,Start,Select,R;",
 	"V,v",`BUILD_DATE
 };
 
@@ -252,8 +252,8 @@ reg btn_fire2B = 0;
 reg btn_fire2C = 0;
 reg btn_fire2D = 0;
 
-wire m_start1  = btn_start1 | joy[8];
-wire m_start2  = btn_start2 | joy[9];
+wire m_start1  = btn_start1 | joy1[8];
+wire m_start2  = btn_start2 | joy[9] | joy2[8];
 wire m_coin1   = btn_coin1  | btn_coin2 | joy[10];
 
 wire m_right1  = btn_right  | joy1[0];
