@@ -28,7 +28,7 @@
 	<buttons names="Fire,Back Fire,Mayday,-,-,Start 1P,Start 2P,Coin,Advance,Auto Up,Test Credit,Pause" default="A,B,X,Start,Select,R,-,-,-,L"/>
 
 	<switches>
-		</switches>
+	</switches>
 
 	<rom index="1">
 		<part>2</part>
@@ -117,7 +117,7 @@ abaaa9a8a7a6a5a4a3a2a1a09f9e9d9c
 	<rom index="3"></rom>
 	<rom index="4"></rom>
 
-	<nvram index="4" size="256"></nvram>
+	<nvram></nvram>
 
 	<remark></remark>
 

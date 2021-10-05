@@ -55,6 +55,7 @@ module emu
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
+	output        HDMI_FREEZE,
 
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM (USE_FB=1 in qsf)
@@ -187,6 +188,7 @@ assign LED_DISK  = 0;
 assign LED_POWER = 0;
 assign BUTTONS = 0;
 assign FB_FORCE_BLANK = '0;
+assign HDMI_FREEZE = 0;
 
 wire [1:0] ar = status[17:16];
 
@@ -205,6 +207,7 @@ localparam CONF_STR = {
 	"h2-;",
 	"DIP;",
 	"-;",
+	"OR,Autosave Hiscores,Off,On;",
 	"P1,Pause options;",
 	"P1OP,Pause when OSD is open,On,Off;",
 	"P1OQ,Dim video after 10s,On,Off;",
@@ -236,6 +239,7 @@ wire        direct_video;
 
 wire        ioctl_download;
 wire        ioctl_upload;
+wire        ioctl_upload_req;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
@@ -249,12 +253,10 @@ wire [31:0] joy = joy1 | joy2;
 
 wire [21:0] gamma_bus;
 
-hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
+hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
 	.clk_sys(clk_sys),
 	.HPS_BUS(HPS_BUS),
-
-	.conf_str(CONF_STR),
 
 	.buttons(buttons),
  	.status(status),
@@ -265,6 +267,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 	.ioctl_download(ioctl_download),
 	.ioctl_upload(ioctl_upload),
+	.ioctl_upload_req(ioctl_upload_req),
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
@@ -277,10 +280,10 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 );
 
-wire rom_download = ioctl_download && !ioctl_index;
-
-reg reset;
-always @(posedge clk_6) reset <= RESET | status[0] | buttons[1] | rom_download;
+wire rom_download = ioctl_download && (ioctl_index == 8'd0);
+wire nvram_selected = ioctl_index == 8'd4;
+wire nvram_download = ioctl_download && nvram_selected;
+wire reset = RESET | status[0] | buttons[1] | (rom_download || nvram_download);
 
 ///////////////////////////////////////////////////////////////////
 
@@ -301,10 +304,6 @@ wire m_fire1b  = joy1[5];
 wire m_fire1c  = joy1[6];
 wire m_fire1d  = joy1[7];
 wire m_fire1e  = joy1[8];
-//wire m_rcw1    =              joy1[8];
-//wire m_rccw1   =              joy1[9];
-//wire m_spccw1  =              joy1[30];
-//wire m_spcw1   =              joy1[31];
 
 wire m_right2  = joy2[0];
 wire m_left2   = joy2[1];
@@ -315,10 +314,6 @@ wire m_fire2b  = joy2[5];
 wire m_fire2c  = joy2[6];
 wire m_fire2d  = joy2[7];
 wire m_fire2e  = joy2[8];
-//wire m_rcw2    =              joy2[8];
-//wire m_rccw2   =              joy2[9];
-//wire m_spccw2  =              joy2[30];
-//wire m_spcw2   =              joy2[31];
 
 wire m_right   = m_right1 | m_right2;
 wire m_left    = m_left1  | m_left2; 
@@ -329,10 +324,6 @@ wire m_fire_b  = m_fire1b | m_fire2b;
 wire m_fire_c  = m_fire1c | m_fire2c;
 wire m_fire_d  = m_fire1d | m_fire2d;
 wire m_fire_e  = m_fire1e | m_fire2e;
-//wire m_rcw     = m_rcw1   | m_rcw2;
-//wire m_rccw    = m_rccw1  | m_rccw2;
-//wire m_spccw   = m_spccw1 | m_spccw2;
-//wire m_spcw    = m_spcw1  | m_spcw2;
 
 // PAUSE SYSTEM
 wire				pause_cpu;
@@ -340,7 +331,7 @@ wire [7:0]		rgb_out;
 pause #(3,3,2,24) pause (
 	.*,
 	.user_button(m_pause),
-	.pause_request(1'b0),
+	.pause_request(hs_pause),
 	.options(~status[26:25])
 );
 
@@ -369,10 +360,9 @@ reg        rotate_ccw;
 reg        extvbl;
 
 always @(posedge clk_sys) begin
+
 	mayday <= 0;
 	input0 <= { 3'b000, m_coin1, m_highreset,1'b0,m_advance,m_autoup};
-
-
 	input1 <= 0;
 	input2 <= 0;
 	landscape <= 1;
@@ -437,12 +427,12 @@ defender defender
 	.defender_state(def_state),
 
 	.dn_clk(clk_sys),
-	.dn_addr(ioctl_addr[15:0]),
+	.dn_addr(ioctl_download ? ioctl_addr[15:0] : hs_address),
 	.dn_data(ioctl_dout),
 	.dn_wr(ioctl_wr & rom_download),
-	.dn_nvram_wr(ioctl_wr & (ioctl_index=='d4)), 
-	.dn_din(ioctl_din),
-	.dn_nvram(ioctl_index=='d4),
+	.dn_nvram_wr(ioctl_wr & nvram_selected), 
+	.dn_din(hs_data_out),
+	.dn_nvram(nvram_selected),
 
 	.video_r(r),
 	.video_g(g),
@@ -486,4 +476,24 @@ assign AUDIO_L = {audio, audio[7:2]};
 assign AUDIO_R = AUDIO_L;
 assign AUDIO_S = 0;
 
+
+// HISCORE SYSTEM
+// --------------
+wire [7:0] hs_address;
+wire [7:0] hs_data_out;
+wire hs_pause;
+
+nvram #(
+	.DUMPWIDTH(8),
+	.DUMPINDEX(4),
+	.PAUSEPAD(2)
+) hi (
+	.*,
+	.clk(clk_sys),
+	.paused(pause_cpu),
+	.autosave(status[27]),
+	.nvram_address(hs_address),
+	.nvram_data_out(hs_data_out),
+	.pause_cpu(hs_pause)
+);
 endmodule

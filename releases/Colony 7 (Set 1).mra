@@ -25,7 +25,7 @@
 	<joystick>8-way</joystick>
 	<special_controls></special_controls>
 	<num_buttons>3</num_buttons>
-	<buttons names="Fire,Bomb,-,-,-,Start 1P,Start 2P,Coin,,-,-,-,Pause" default="A,B,Start,Select,R"/>
+	<buttons names="Fire,Bomb,-,-,-,Start 1P,Start 2P,Coin,-,-,-,Pause" default="A,B,Start,Select,R,L"/>
 
 	<switches>
 		<dip bits="0" ids="2,3" name="Lives"></dip>
@@ -54,7 +54,7 @@
 	<rom index="3"></rom>
 	<rom index="4"></rom>
 
-	<nvram index="4" size="256"></nvram>
+	<nvram></nvram>
 
 	<remark></remark>
 
