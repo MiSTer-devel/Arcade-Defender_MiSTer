@@ -29,7 +29,7 @@ module emu
 	input         RESET,
 
 	//Must be passed to hps_io module
-	inout  [45:0] HPS_BUS,
+	inout  [48:0] HPS_BUS,
 
 	//Base video clock. Usually equals to CLK_SYS.
 	output        CLK_VIDEO,
@@ -52,13 +52,14 @@ module emu
 	output        VGA_F1,
 	output [1:0]  VGA_SL,
 	output        VGA_SCALER, // Force VGA scaler
+	output        VGA_DISABLE, // analog out is off
 
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
 	output        HDMI_FREEZE,
 
 `ifdef MISTER_FB
-	// Use framebuffer in DDRAM (USE_FB=1 in qsf)
+	// Use framebuffer in DDRAM
 	// FB_FORMAT:
 	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
 	//    [3]   : 0=16bits 565 1=16bits 1555
@@ -189,6 +190,7 @@ assign LED_POWER = 0;
 assign BUTTONS = 0;
 assign FB_FORCE_BLANK = '0;
 assign HDMI_FREEZE = 0;
+assign VGA_DISABLE = 0;
 
 wire [1:0] ar = status[17:16];
 
@@ -264,6 +266,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
  	.forced_scandoubler(forced_scandoubler),
  	.gamma_bus(gamma_bus),
  	.direct_video(direct_video),
+	.video_rotated(video_rotated),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_upload(ioctl_upload),
@@ -462,6 +465,9 @@ always @(posedge clk_48) begin
 	div <= div + 1'd1;
 	ce_pix <= !div;
 end
+
+wire flip = 0;
+wire video_rotated;
 
 screen_rotate screen_rotate (.*);
 
