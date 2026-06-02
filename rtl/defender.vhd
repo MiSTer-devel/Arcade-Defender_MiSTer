@@ -152,7 +152,8 @@ port(
 	mayday         : in  std_logic; -- Mayday protection
 	input0         : in  std_logic_vector( 7 downto 0);
 	input1         : in  std_logic_vector( 7 downto 0);
-	input2         : in  std_logic_vector( 7 downto 0)
+	input2         : in  std_logic_vector( 7 downto 0);
+	flip           : in  std_logic
 );
 end defender;
 
@@ -188,6 +189,12 @@ architecture struct of defender is
 
 	signal screen_ctrl    : std_logic;
 	signal screen_ctrl_we : std_logic;
+	
+	signal vid_flip    : std_logic;
+	signal vcnt_mux    : std_logic_vector(7 downto 0);
+	signal vcnt_mirror : std_logic_vector(8 downto 0);
+	signal hcnt_mux    : std_logic_vector(5 downto 0);
+	signal hcnt_mirror : std_logic_vector(5 downto 0);
 
 	signal cmos_do   : std_logic_vector(3 downto 0);
 	signal cmos_we   : std_logic;
@@ -283,6 +290,12 @@ architecture struct of defender is
 	signal roms_cs  : std_logic;
 begin
 
+vid_flip    <= screen_ctrl xor flip;
+vcnt_mirror <= not vcnt;
+vcnt_mux    <= vcnt(7 downto 0) when vid_flip = '0' else std_logic_vector(unsigned(vcnt_mirror(7 downto 0)) - 8);
+hcnt_mirror <= std_logic_vector(unsigned(not hcnt) - 10);
+hcnt_mux    <= hcnt when vid_flip = '0' else hcnt_mirror;
+
 clock_6n <= not clock_6;
 
 -- make pixels counters and cpu clock
@@ -360,17 +373,17 @@ roms_addr <=
 -- encoded cpu addr (decoder.2) and encoded scan addr (decoder.3)
 -- and screen control for cocktail table flip
 cpu_to_video_addr <= screen_ctrl & cpu_addr(15 downto 8);
-video_scan_addr   <= screen_ctrl & vcnt(7 downto 0);
+video_scan_addr   <= screen_ctrl & vcnt_mux;
 
 -- mux cpu addr/scan addr to wram
 wram_addr <= 
 	cpu_addr(7 downto 0) & cpu_to_video_do(5 downto 0) when cpu_ce = '1' else
-	video_scan_do & hcnt;	
+	video_scan_do & hcnt_mux;	
 
 --	mux cpu addr/pixels data to palette addr
 palette_addr <=
 	cpu_addr(3 downto 0) when palette_we = '1' else 
-	pixels(23 downto 20) when screen_ctrl = '0' else pixels(3 downto 0);
+	pixels(23 downto 20) when vid_flip='0' else pixels(3 downto 0);
 
 -- only cpu can write to palette	
 palette_di <= cpu_do;
@@ -381,7 +394,7 @@ palette_di <= cpu_do;
 process (clock_6) 
 begin
 	if rising_edge(clock_6) then 
-		if screen_ctrl = '0' then
+		if vid_flip = '0' then
 			if pixel_cnt = "001" then
 				pixels <= wram0_do & wram1_do & wram2_do;
 			else
@@ -389,7 +402,7 @@ begin
 			end if;
 		else
 			if pixel_cnt = "001" then
-				pixels <= wram2_do & wram1_do & wram0_do;
+				pixels <= wram0_do & wram1_do & wram2_do;
 			else
 				pixels <= X"0" & pixels(23 downto 4);		
 			end if;
