@@ -207,6 +207,7 @@ localparam CONF_STR = {
 	"-;",
 	"H0OGH,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"H1H0O2,Orientation,Vert,Horz;",
+	"H3OI,Flip Screen,Off,On;",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
 	"h2O67,Control,Mode 1,Mode 2,Cabinet;",
@@ -266,7 +267,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 	.buttons(buttons),
  	.status(status),
-	.status_menumask({mod == mod_defender,landscape,direct_video}),
+	.status_menumask({(mod != mod_jin),(mod == mod_defender),landscape,direct_video}),
  	.forced_scandoubler(forced_scandoubler),
  	.gamma_bus(gamma_bus),
  	.direct_video(direct_video),
@@ -426,6 +427,10 @@ wire [2:0] r,g;
 wire [1:0] b;
 wire HSync, VSync;
 wire HBlank, VBlank;
+wire HSync_i  = HSync;
+wire VSync_i  = VSync;
+wire HBlank_i = HBlank;
+wire VBlank_i = VBlank;
 wire def_state;
 
 defender defender
@@ -457,7 +462,8 @@ defender defender
 
 	.input0(in0),
 	.input1(in1),
-	.input2(in2)
+	.input2(in2),
+	.flip(core_flip)
 );
 
 ///////////////////////////////////////////////////////////////////
@@ -470,7 +476,9 @@ always @(posedge clk_48) begin
 	ce_pix <= !div;
 end
 
-wire flip = 0;
+wire flip = 1'b0;
+wire is_vertical_game = (mod == mod_jin) || (mod == mod_mayday);
+wire core_flip = is_vertical_game & status[18];
 wire video_rotated;
 
 screen_rotate screen_rotate (.*);
@@ -480,6 +488,10 @@ arcade_video #(306,8) arcade_video
 	.*,
 	.clk_video(clk_48),
 	.RGB_in(rgb_out),
+	.HBlank(HBlank_i),
+	.VBlank(VBlank_i),
+	.HSync(HSync_i),
+	.VSync(VSync_i),
 	.fx(status[5:3])
 );
 
